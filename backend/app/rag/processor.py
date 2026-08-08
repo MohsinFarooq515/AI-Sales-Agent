@@ -109,7 +109,7 @@ def split_into_chunks(
     text: str,
     max_chars: int = 1400,
     overlap_chars: int = 200,
-) -> list[str]:
+) -> List[str]:
 
     if len(text) <= max_chars:
         return [text]
@@ -119,7 +119,7 @@ def split_into_chunks(
         text,
     )
 
-    chunks: list[str] = []
+    chunks: List[str] = []
     current = ""
 
     for sentence in sentences:
@@ -165,7 +165,7 @@ def split_into_chunks(
 
 def build_chunks(
     document: KnowledgeDocument,
-) -> list[KnowledgeChunk]:
+) -> List[KnowledgeChunk]:
 
     if not document.include_in_rag:
         return []
@@ -174,7 +174,7 @@ def build_chunks(
         document.content
     )
 
-    chunks: list[KnowledgeChunk] = []
+    chunks: List[KnowledgeChunk] = []
 
     for index, chunk_text in enumerate(
         raw_chunks
