@@ -145,10 +145,15 @@ Rules:
 10. Set intent booleans only when the visitor clearly expresses that intent.
 """
 
+        response_options = {}
+        if self.model.startswith("gpt-5"):
+            response_options["reasoning"] = {"effort": "low"}
+
         response = self.client.responses.create(
             model=self.model,
             instructions=instructions,
             input=conversation_text,
+            max_output_tokens=600,
             text={
                 "format": {
                     "type": "json_schema",
@@ -158,6 +163,7 @@ Rules:
                 }
             },
             store=False,
+            **response_options,
         )
 
         data = json.loads(

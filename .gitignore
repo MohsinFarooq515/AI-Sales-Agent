@@ -1,0 +1,29 @@
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+
+# Environment
+.env
+backend/.env
+data/app/*.db
+data/app/*.log
+
+# Node
+node_modules/
+.next/
+dist/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated data
+data/raw/
+data/processed/
+!data/processed/
+data/processed/*
+!data/processed/knowledge_embeddings.json
