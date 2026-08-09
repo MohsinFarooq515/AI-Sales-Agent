@@ -10,11 +10,24 @@ from app.agent.actions import build_browser_actions
 from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
+from app.agent.sales_agent import detect_response_language
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
 
 
 class LeadLogicTests(unittest.TestCase):
+    def test_language_fallback_does_not_copy_previous_language(self):
+        self.assertEqual(detect_response_language("Ecom website designer"), "English")
+        self.assertEqual(
+            detect_response_language("saya ingin berbicara dengan perusahaan Anda"),
+            "Indonesian",
+        )
+        self.assertEqual(
+            detect_response_language("mujhe website design chahiye"),
+            "Urdu written in Roman script",
+        )
+        self.assertEqual(detect_response_language("مجھے ویب سائٹ چاہیے"), "Urdu or Arabic")
+
     @patch("app.core.security.settings")
     def test_secret_encryption_round_trip(self, settings):
         settings.token_encryption_key = Fernet.generate_key().decode()
