@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -125,6 +125,7 @@ class SalesAgentService:
         sales_stage: str,
         retrieval_results: Optional[List[Dict]] = None,
         response_language: Optional[str] = None,
+        on_delta: Optional[Callable[[str], None]] = None,
     ) -> Dict:
         results = retrieval_results if retrieval_results is not None else self.retrieve_knowledge(user_message)
         response_language = response_language or self.identify_response_language(user_message)
@@ -237,7 +238,7 @@ Respond naturally to the visitor, entirely in the mandatory response language.
         if self.model.startswith("gpt-5"):
             response_options["reasoning"] = {"effort": "low"}
 
-        response = self.client.responses.create(
+        request_options = dict(
             model=self.model,
             instructions=instructions,
             input=user_input,
@@ -245,6 +246,16 @@ Respond naturally to the visitor, entirely in the mandatory response language.
             store=False,
             **response_options,
         )
+        if on_delta:
+            answer_parts = []
+            for event in self.client.responses.create(stream=True, **request_options):
+                if event.type == "response.output_text.delta":
+                    answer_parts.append(event.delta)
+                    on_delta(event.delta)
+            answer = "".join(answer_parts)
+        else:
+            response = self.client.responses.create(**request_options)
+            answer = response.output_text
 
         sources = []
         seen_urls = set()
@@ -266,7 +277,7 @@ Respond naturally to the visitor, entirely in the mandatory response language.
             )
 
         return {
-            "answer": response.output_text,
+            "answer": answer,
             "sources": sources,
         }
 

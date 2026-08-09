@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+import json
+import queue
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from openai import OpenAIError
 from sqlalchemy.orm import Session
 
@@ -27,7 +31,7 @@ from app.api.models import (
     LeadSummaryResponse,
 )
 
-from app.db.database import get_db
+from app.db.database import SessionLocal, get_db
 from app.db.repository import (
     add_analytics_event,
     add_message,
@@ -77,6 +81,10 @@ def chat(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
+    return _process_chat(request, background_tasks, db)
+
+
+def _process_chat(request, background_tasks, db, on_delta=None):
 
     message = request.message.strip()
 
@@ -143,6 +151,7 @@ def chat(
             determine_sales_stage(lead).value,
             retrieval_results,
             response_language,
+            on_delta,
         )
         extracted = extraction_future.result()
     except OpenAIError as exc:
@@ -263,4 +272,43 @@ def chat(
         ),
         sources=result["sources"],
         actions=build_browser_actions(message, result["sources"], lead),
+    )
+
+
+@router.post("/chat/stream")
+def chat_stream(request: ChatRequest, background_tasks: BackgroundTasks):
+    """Stream answer deltas, followed by the normal ChatResponse metadata."""
+    events = queue.Queue()
+
+    def emit(delta):
+        events.put(("delta", delta))
+
+    def process():
+        db = SessionLocal()
+        try:
+            result = _process_chat(request, background_tasks, db, emit)
+            events.put(("done", result.model_dump(mode="json")))
+        except Exception as exc:
+            detail = getattr(exc, "detail", "The chat request failed. Please retry.")
+            events.put(("error", str(detail)))
+        finally:
+            db.close()
+            events.put(("close", None))
+
+    def stream_events():
+        threading.Thread(target=process, daemon=True).start()
+        while True:
+            event_type, payload = events.get()
+            if event_type == "close":
+                break
+            yield json.dumps(
+                {"type": event_type, "delta" if event_type == "delta" else "data": payload},
+                ensure_ascii=False,
+            ) + "\n"
+
+    return StreamingResponse(
+        stream_events(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=background_tasks,
     )

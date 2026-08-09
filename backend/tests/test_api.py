@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 import uuid
 from unittest.mock import patch
@@ -70,6 +71,26 @@ class ApiTests(unittest.TestCase):
         response = self.client.get("/api/admin/dashboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn("totals", response.json())
+
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.lead_extractor.extract", return_value=LeadExtraction())
+    @patch("app.api.chat.sales_agent.generate_response")
+    def test_streaming_chat_emits_delta_and_done(self, generate, extract, identify,
+                                                 retrieve):
+        def streamed(*args):
+            args[-1]("Hello")
+            args[-1](" there")
+            return {"answer": "Hello there", "sources": []}
+        generate.side_effect = streamed
+        with self.client.stream("POST", "/api/chat/stream",
+                                json={"message": "Hello"}) as response:
+            events = [json.loads(line) for line in response.iter_lines() if line]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([event["delta"] for event in events[:2]],
+                         ["Hello", " there"])
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertEqual(events[-1]["data"]["answer"], "Hello there")
 
     @patch("app.api.chat.sync_lead_background")
     @patch("app.api.analytics.sync_lead_background")
