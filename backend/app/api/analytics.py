@@ -82,7 +82,10 @@ def dashboard(db: Session = Depends(get_db)):
     visitors = db.scalar(select(func.count(func.distinct(AnalyticsEventDB.session_id))).where(
         AnalyticsEventDB.event_type == "visitor.page_view")) or 0
     leads = db.execute(select(LeadDB)).scalars().all()
-    messages = db.scalar(select(func.count()).select_from(MessageDB)) or 0
+    visitor_messages = db.scalar(select(func.count()).select_from(MessageDB).where(
+        MessageDB.role == "user")) or 0
+    assistant_messages = db.scalar(select(func.count()).select_from(MessageDB).where(
+        MessageDB.role == "assistant")) or 0
     meetings = db.scalar(select(func.count()).select_from(AnalyticsEventDB).where(
         AnalyticsEventDB.event_type == "meeting.booked")) or 0
     identified = sum(1 for lead in leads if lead.email or lead.phone)
@@ -97,7 +100,7 @@ def dashboard(db: Session = Depends(get_db)):
         IntegrationSettingDB.key.like("knowledge_refresh_%"))).scalars().all()}
     return {
         "totals": {"website_visitors": visitors, "conversations": conversations,
-                   "messages": messages, "leads_generated": identified,
+                   "messages": visitor_messages, "leads_generated": identified,
                    "conversion_rate": round((identified / conversations * 100), 1) if conversations else 0,
                    "meetings_booked_or_requested": meetings},
         "popular_services": [{"name": name, "count": count} for name, count in services.most_common(10)],
@@ -108,7 +111,14 @@ def dashboard(db: Session = Depends(get_db)):
         "sales_performance": {"proposals": sum(1 for lead in leads if lead.wants_proposal),
                               "callbacks": sum(1 for lead in leads if lead.wants_callback),
                               "handover_requests": sum(1 for lead in leads if lead.requested_human)},
-        "ai_performance": {"messages_per_conversation": round(messages / conversations, 2) if conversations else 0,
+        "ai_performance": {
+                           "assistant_responses": assistant_messages,
+                           "response_coverage_percent": round(
+                               assistant_messages / visitor_messages * 100, 1
+                           ) if visitor_messages else 0,
+                           "visitor_messages_per_conversation": round(
+                               visitor_messages / conversations, 2
+                           ) if conversations else 0,
                            "integration_deliveries": deliveries,
                            "knowledge_refresh": refresh_settings},
     }
