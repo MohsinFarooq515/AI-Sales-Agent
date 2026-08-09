@@ -139,9 +139,8 @@ def _process_chat(request, background_tasks, db, on_delta=None):
     try:
         extraction_future = external_executor.submit(lead_extractor.extract, message)
         retrieval_future = external_executor.submit(sales_agent.retrieve_knowledge, message)
-        language_future = external_executor.submit(sales_agent.identify_response_language, message)
         retrieval_results = retrieval_future.result()
-        response_language = language_future.result()
+        response_language = sales_agent.identify_response_language(message)
         history = [{"role": item.role, "content": item.content} for item in messages]
         response_future = external_executor.submit(
             sales_agent.generate_response,
