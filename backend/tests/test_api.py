@@ -48,9 +48,11 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     @patch("app.api.chat.sales_agent.retrieve_knowledge")
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
     @patch("app.api.chat.sales_agent.generate_response")
     @patch("app.api.chat.lead_extractor.extract")
-    def test_widget_uuid_session_is_normalized_for_sqlite(self, extract, generate, retrieve):
+    def test_widget_uuid_session_is_normalized_for_sqlite(self, extract, generate,
+                                                           identify, retrieve):
         extract.return_value = LeadExtraction()
         retrieve.return_value = []
         generate.return_value = {"answer": "Hello", "sources": []}
@@ -72,9 +74,10 @@ class ApiTests(unittest.TestCase):
     @patch("app.api.chat.sync_lead_background")
     @patch("app.api.analytics.sync_lead_background")
     @patch("app.api.chat.sales_agent.retrieve_knowledge")
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
     @patch("app.api.chat.sales_agent.generate_response")
     @patch("app.api.chat.lead_extractor.extract")
-    def test_complete_chat_workflow(self, extract, generate, retrieve,
+    def test_complete_chat_workflow(self, extract, generate, identify, retrieve,
                                     analytics_sync, chat_sync):
         retrieve.return_value = []
         extract.return_value = LeadExtraction(email="lead@example.com",

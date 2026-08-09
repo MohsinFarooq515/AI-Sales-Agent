@@ -131,7 +131,9 @@ def chat(
     try:
         extraction_future = external_executor.submit(lead_extractor.extract, message)
         retrieval_future = external_executor.submit(sales_agent.retrieve_knowledge, message)
+        language_future = external_executor.submit(sales_agent.identify_response_language, message)
         retrieval_results = retrieval_future.result()
+        response_language = language_future.result()
         history = [{"role": item.role, "content": item.content} for item in messages]
         response_future = external_executor.submit(
             sales_agent.generate_response,
@@ -140,6 +142,7 @@ def chat(
             lead.model_copy(deep=True),
             determine_sales_stage(lead).value,
             retrieval_results,
+            response_language,
         )
         extracted = extraction_future.result()
     except OpenAIError as exc:

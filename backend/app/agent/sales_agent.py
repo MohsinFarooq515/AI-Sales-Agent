@@ -124,9 +124,10 @@ class SalesAgentService:
         lead: LeadProfile,
         sales_stage: str,
         retrieval_results: Optional[List[Dict]] = None,
+        response_language: Optional[str] = None,
     ) -> Dict:
         results = retrieval_results if retrieval_results is not None else self.retrieve_knowledge(user_message)
-        response_language = self.identify_response_language(user_message)
+        response_language = response_language or self.identify_response_language(user_message)
 
         knowledge_parts = []
 
