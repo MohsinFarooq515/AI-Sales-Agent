@@ -26,7 +26,7 @@ def callback(code: str, state: str, db: Session = Depends(get_db)):
     return RedirectResponse(f"{settings.app_base_url}/admin?calendar=connected")
 
 
-@router.get("/status", dependencies=[Depends(require_admin)])
+@router.get("/status")
 def status(db: Session = Depends(get_db)):
     record = db.get(GoogleCalendarCredentialDB, 1)
     sheet = db.get(IntegrationSettingDB, "google_sheets_spreadsheet_id")

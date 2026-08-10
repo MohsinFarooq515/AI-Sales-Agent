@@ -73,6 +73,19 @@ class ApiTests(unittest.TestCase):
         self.assertIn("totals", response.json())
         self.assertLessEqual(len(response.json()["frequently_asked_questions"]), 5)
 
+    def test_dashboard_is_public_but_crm_writes_remain_protected(self):
+        app.dependency_overrides.pop(require_admin, None)
+        try:
+            self.assertEqual(self.client.get("/api/admin/dashboard").status_code, 200)
+            self.assertEqual(self.client.get("/api/admin/leads").status_code, 200)
+            response = self.client.put("/api/admin/leads/not-a-lead", json={
+                "status": "new", "assigned_to": None,
+                "follow_up_at": None, "notes": None,
+            })
+            self.assertIn(response.status_code, (401, 503))
+        finally:
+            app.dependency_overrides[require_admin] = lambda: None
+
     @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
     @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
     @patch("app.api.chat.lead_extractor.extract", return_value=LeadExtraction())

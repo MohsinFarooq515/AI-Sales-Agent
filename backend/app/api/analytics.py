@@ -76,7 +76,7 @@ def integration_lead_update(request: IntegrationLeadUpdate, background_tasks: Ba
     return {"accepted": True, "score": lead.score, "temperature": lead.temperature}
 
 
-@router.get("/admin/dashboard", dependencies=[Depends(require_admin)])
+@router.get("/admin/dashboard")
 def dashboard(db: Session = Depends(get_db)):
     conversations = db.scalar(select(func.count()).select_from(ConversationDB)) or 0
     visitors = db.scalar(select(func.count(func.distinct(AnalyticsEventDB.session_id))).where(
@@ -124,7 +124,7 @@ def dashboard(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/admin/leads", dependencies=[Depends(require_admin)])
+@router.get("/admin/leads")
 def list_leads(db: Session = Depends(get_db)):
     rows = db.execute(select(LeadDB, ConversationDB.stage, CrmLeadStateDB).join(
         ConversationDB, LeadDB.conversation_id == ConversationDB.id)

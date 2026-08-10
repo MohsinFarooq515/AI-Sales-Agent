@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.chat import router as chat_router
@@ -59,7 +59,9 @@ def demo():
 
 @app.get("/admin", include_in_schema=False)
 def admin():
-    return FileResponse(ADMIN_DIR / "index.html")
+    content = (ADMIN_DIR / "index.html").read_text(encoding="utf-8")
+    content = content.replace("dashboard.js?v=5", "dashboard.js?v=6")
+    return HTMLResponse(content, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/booking", include_in_schema=False)
