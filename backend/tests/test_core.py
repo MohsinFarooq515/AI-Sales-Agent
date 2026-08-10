@@ -45,12 +45,12 @@ class LeadLogicTests(unittest.TestCase):
         )
         self.assertIsNone(extract_explicit_visitor_name("I need SEO for Mohsin Ltd."))
 
-    def test_stored_name_is_not_used_to_address_an_unintroduced_visitor(self):
+    def test_name_collected_in_current_session_is_reused(self):
         service = object.__new__(SalesAgentService)
         service.model = "test-model"
         service.client = MagicMock()
-        service.client.responses.create.return_value.output_text = "Certainly, Sir."
-        service.generate_response(
+        service.client.responses.create.return_value.output_text = "Here is the plan."
+        result = service.generate_response(
             "What do you recommend?",
             [{"role": "assistant", "content": "Welcome back, Mohsin."}],
             LeadProfile(full_name="Mohsin"),
@@ -59,9 +59,10 @@ class LeadLogicTests(unittest.TestCase):
             response_language="English",
         )
         request = service.client.responses.create.call_args.kwargs
-        self.assertNotIn("Mohsin", request["input"])
+        self.assertNotIn("Mohsin", request["input"].split("LATEST VISITOR MESSAGE:")[0])
         self.assertIn("application adds the MANDATORY VISITOR ADDRESS", request["instructions"])
-        self.assertIn("MANDATORY VISITOR ADDRESS: Sir", request["input"])
+        self.assertIn("MANDATORY VISITOR ADDRESS: Mohsin", request["input"])
+        self.assertTrue(result["answer"].startswith("Mohsin,"))
 
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")

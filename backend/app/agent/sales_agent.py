@@ -188,7 +188,7 @@ class SalesAgentService:
             lead
         )
         explicit_visitor_name = extract_explicit_visitor_name(user_message)
-        address_directive = explicit_visitor_name or "Sir"
+        address_directive = explicit_visitor_name or lead.full_name or "Sir"
 
         instructions = """
 You are the AI Sales Agent for Systematic IT Solutions.
@@ -237,13 +237,10 @@ STRICT RULES:
 17. Handle objections with evidence and a low-pressure next step.
 18. Cross-sell only relevant services supported by website context.
 19. When useful, tell the visitor a relevant page action is available.
-20. Address the visitor by name only when the LATEST VISITOR MESSAGE explicitly
-    states that name. Never take a name from KNOWN LEAD INFORMATION, an earlier
-    message, browser/session data, examples, or the assistant's prior replies
-    for purposes of addressing the visitor. If the latest message explicitly
-    provides a name, address the visitor using that name. Otherwise, begin the
-    response with "Sir,". This salutation rule is mandatory, not optional. Do
-    not mention a stored name merely to personalize the answer.
+20. Address the visitor using a name explicitly introduced in the latest
+    message or already collected in KNOWN LEAD INFORMATION for this isolated
+    conversation. Never infer a name from examples or assistant replies. If
+    this conversation has no visitor name, use "Sir".
 21. The application adds the MANDATORY VISITOR ADDRESS itself. Do not write a
     greeting, visitor name, title, or salutation at the start of your response.
     Begin directly with the useful response content.
