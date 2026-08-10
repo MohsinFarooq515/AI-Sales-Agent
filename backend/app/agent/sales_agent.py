@@ -59,6 +59,27 @@ def detect_response_language(text: str) -> str:
     return language if score else "Detect from the latest visitor message"
 
 
+def extract_explicit_visitor_name(text: str) -> Optional[str]:
+    """Extract a name only when the latest message explicitly introduces it."""
+    match = re.search(
+        r"\b(?:my name is|call me|this is)\s+([^,.;!?\n]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    candidate = re.split(
+        r"\s+(?:and|from|with|at|my)\b",
+        match.group(1).strip(),
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" -:'\"")
+    words = candidate.split()
+    if not 1 <= len(words) <= 4 or not all(re.search(r"\w", word) for word in words):
+        return None
+    return candidate
+
+
 class SalesAgentService:
     def __init__(
         self,
@@ -150,6 +171,8 @@ class SalesAgentService:
         lead_context = self._build_lead_context(
             lead
         )
+        explicit_visitor_name = extract_explicit_visitor_name(user_message)
+        address_directive = explicit_visitor_name or "Sir"
 
         instructions = """
 You are the AI Sales Agent for Systematic IT Solutions.
@@ -205,6 +228,9 @@ STRICT RULES:
     provides a name, address the visitor using that name. Otherwise, begin the
     response with "Sir,". This salutation rule is mandatory, not optional. Do
     not mention a stored name merely to personalize the answer.
+21. The MANDATORY VISITOR ADDRESS below is authoritative. Begin the response
+    with that exact value followed by a comma. Do not substitute another name,
+    title, greeting, or salutation.
 """
 
         user_input = f"""
@@ -227,7 +253,9 @@ LATEST VISITOR MESSAGE:
 {user_message}
 
 RESPONSE LANGUAGE DIRECTIVE: {response_language}
-Respond naturally and entirely in the language required by that directive.
+MANDATORY VISITOR ADDRESS: {address_directive}
+Respond naturally and entirely in the response language directive, beginning
+with the exact mandatory visitor address followed by a comma.
 """
 
         response_options = {}

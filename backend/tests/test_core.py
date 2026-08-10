@@ -10,12 +10,26 @@ from app.agent.actions import build_browser_actions
 from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
-from app.agent.sales_agent import SalesAgentService, detect_response_language
+from app.agent.sales_agent import (SalesAgentService, detect_response_language,
+                                   extract_explicit_visitor_name)
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
 
 
 class LeadLogicTests(unittest.TestCase):
+    def test_latest_message_name_extraction_is_explicit(self):
+        self.assertEqual(
+            extract_explicit_visitor_name(
+                "My name is Demo Lead. My company is BrightSmile Demo Clinic."
+            ),
+            "Demo Lead",
+        )
+        self.assertEqual(
+            extract_explicit_visitor_name("Call me Ana María, I need SEO."),
+            "Ana María",
+        )
+        self.assertIsNone(extract_explicit_visitor_name("I need SEO for Mohsin Ltd."))
+
     def test_stored_name_is_not_used_to_address_an_unintroduced_visitor(self):
         service = object.__new__(SalesAgentService)
         service.model = "test-model"
@@ -32,6 +46,7 @@ class LeadLogicTests(unittest.TestCase):
         request = service.client.responses.create.call_args.kwargs
         self.assertNotIn("Mohsin", request["input"])
         self.assertIn('begin the\n    response with "Sir,"', request["instructions"])
+        self.assertIn("MANDATORY VISITOR ADDRESS: Sir", request["input"])
 
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
