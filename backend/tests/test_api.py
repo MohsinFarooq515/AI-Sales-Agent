@@ -72,6 +72,29 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["session_id"], session_id)
 
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.sales_agent.generate_response",
+           return_value={"answer": "Reply", "sources": []})
+    @patch("app.api.chat.lead_extractor.extract", return_value=LeadExtraction())
+    def test_explicit_name_persists_within_session_without_model_extraction(
+            self, extract, generate, identify, retrieve):
+        session_id = str(uuid.uuid4())
+        first = self.client.post("/api/chat", json={
+            "message": "My name is Demo Lead. I need Local SEO.",
+            "session_id": session_id,
+        })
+        second = self.client.post("/api/chat", json={
+            "message": "What do you recommend next?",
+            "session_id": session_id,
+        })
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.json()["lead"]["full_name"], "Demo Lead")
+        self.assertEqual(second.json()["lead"]["full_name"], "Demo Lead")
+        self.assertEqual(generate.call_args_list[1].args[2].full_name, "Demo Lead")
+
     def test_event_and_dashboard(self):
         self.assertEqual(self.client.post("/api/events", json={
             "event_type": "visitor.page_view", "data": {"url": "https://example.com"}

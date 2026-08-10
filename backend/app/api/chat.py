@@ -19,6 +19,7 @@ from app.agent.lead_scoring import (
 )
 from app.agent.sales_agent import (
     SalesAgentService,
+    extract_explicit_visitor_name,
 )
 from app.agent.sales_stage import (
     determine_sales_stage,
@@ -120,6 +121,12 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         db=db,
         conversation_id=conversation.id,
     )
+    # Explicit introductions are deterministic and must not depend on the
+    # model-based lead extractor. Persist the name in this isolated session
+    # before response generation so the current and later replies can use it.
+    explicit_visitor_name = extract_explicit_visitor_name(message)
+    if explicit_visitor_name:
+        lead.full_name = explicit_visitor_name
     previous_score = lead.score
     was_identified = bool(lead.email or lead.phone)
     previously_wanted_meeting = lead.wants_meeting
