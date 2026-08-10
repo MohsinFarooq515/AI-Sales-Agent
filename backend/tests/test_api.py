@@ -49,6 +49,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("function linkifyServices", widget)
         self.assertIn("https://systematicitsolutions.com/seo/local-seo", widget)
         self.assertIn("link.target='_blank'", widget)
+        self.assertIn("function requestChatStream", widget)
+        self.assertIn("[502,503,504]", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
