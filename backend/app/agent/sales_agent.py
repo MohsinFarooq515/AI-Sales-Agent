@@ -80,6 +80,22 @@ def extract_explicit_visitor_name(text: str) -> Optional[str]:
     return candidate
 
 
+def normalize_visitor_address(answer: str, address: str) -> str:
+    """Guarantee exactly one correct visitor address at the response start."""
+    possible_addresses = ["Sir"]
+    if address.casefold() != "sir":
+        possible_addresses.append(address)
+    alternatives = "|".join(re.escape(value) for value in possible_addresses)
+    content = re.sub(
+        rf"^\s*(?:(?:hello|hi|dear)\s+)?(?:{alternatives})\s*[,!:;.-]?\s*",
+        "",
+        answer,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return f"{address}, {content.lstrip()}"
+
+
 class SalesAgentService:
     def __init__(
         self,
@@ -228,9 +244,9 @@ STRICT RULES:
     provides a name, address the visitor using that name. Otherwise, begin the
     response with "Sir,". This salutation rule is mandatory, not optional. Do
     not mention a stored name merely to personalize the answer.
-21. The MANDATORY VISITOR ADDRESS below is authoritative. Begin the response
-    with that exact value followed by a comma. Do not substitute another name,
-    title, greeting, or salutation.
+21. The application adds the MANDATORY VISITOR ADDRESS itself. Do not write a
+    greeting, visitor name, title, or salutation at the start of your response.
+    Begin directly with the useful response content.
 """
 
         user_input = f"""
@@ -255,7 +271,7 @@ LATEST VISITOR MESSAGE:
 RESPONSE LANGUAGE DIRECTIVE: {response_language}
 MANDATORY VISITOR ADDRESS: {address_directive}
 Respond naturally and entirely in the response language directive, beginning
-with the exact mandatory visitor address followed by a comma.
+directly with useful content; the application prepends the mandatory address.
 """
 
         response_options = {}
@@ -271,15 +287,38 @@ with the exact mandatory visitor address followed by a comma.
             **response_options,
         )
         if on_delta:
-            answer_parts = []
+            prefix = f"{address_directive}, "
+            answer_parts = [prefix]
+            on_delta(prefix)
+            pending = ""
+            started = False
             for event in self.client.responses.create(stream=True, **request_options):
                 if event.type == "response.output_text.delta":
-                    answer_parts.append(event.delta)
-                    on_delta(event.delta)
+                    if started:
+                        answer_parts.append(event.delta)
+                        on_delta(event.delta)
+                        continue
+                    pending += event.delta
+                    if len(pending) >= 80 or "\n" in pending:
+                        cleaned = normalize_visitor_address(
+                            pending, address_directive
+                        )[len(prefix):]
+                        answer_parts.append(cleaned)
+                        on_delta(cleaned)
+                        started = True
+            if pending and not started:
+                cleaned = normalize_visitor_address(
+                    pending, address_directive
+                )[len(prefix):]
+                answer_parts.append(cleaned)
+                on_delta(cleaned)
             answer = "".join(answer_parts)
         else:
             response = self.client.responses.create(**request_options)
-            answer = response.output_text
+            answer = normalize_visitor_address(
+                response.output_text,
+                address_directive,
+            )
 
         sources = []
         seen_urls = set()

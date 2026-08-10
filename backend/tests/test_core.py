@@ -11,12 +11,27 @@ from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
 from app.agent.sales_agent import (SalesAgentService, detect_response_language,
-                                   extract_explicit_visitor_name)
+                                   extract_explicit_visitor_name,
+                                   normalize_visitor_address)
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
 
 
 class LeadLogicTests(unittest.TestCase):
+    def test_visitor_address_is_deterministic(self):
+        self.assertEqual(
+            normalize_visitor_address("Sir, here is the plan.", "Demo Lead"),
+            "Demo Lead, here is the plan.",
+        )
+        self.assertEqual(
+            normalize_visitor_address("Hello Demo Lead! Welcome.", "Demo Lead"),
+            "Demo Lead, Welcome.",
+        )
+        self.assertEqual(
+            normalize_visitor_address("Here is the plan.", "Sir"),
+            "Sir, Here is the plan.",
+        )
+
     def test_latest_message_name_extraction_is_explicit(self):
         self.assertEqual(
             extract_explicit_visitor_name(
@@ -45,7 +60,7 @@ class LeadLogicTests(unittest.TestCase):
         )
         request = service.client.responses.create.call_args.kwargs
         self.assertNotIn("Mohsin", request["input"])
-        self.assertIn('begin the\n    response with "Sir,"', request["instructions"])
+        self.assertIn("application adds the MANDATORY VISITOR ADDRESS", request["instructions"])
         self.assertIn("MANDATORY VISITOR ADDRESS: Sir", request["input"])
 
     def test_language_fallback_does_not_copy_previous_language(self):
