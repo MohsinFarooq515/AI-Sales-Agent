@@ -46,6 +46,9 @@ class ApiTests(unittest.TestCase):
         widget = self.client.get("/widget/widget.js").text
         self.assertIn("sessionStorage.getItem('sits_agent_session')", widget)
         self.assertIn("localStorage.removeItem('sits_agent_session')", widget)
+        self.assertIn("function linkifyServices", widget)
+        self.assertIn("https://systematicitsolutions.com/seo/local-seo", widget)
+        self.assertIn("link.target='_blank'", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
