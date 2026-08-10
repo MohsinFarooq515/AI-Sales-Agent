@@ -31,7 +31,7 @@ class LeadLogicTests(unittest.TestCase):
         )
         request = service.client.responses.create.call_args.kwargs
         self.assertNotIn("Mohsin", request["input"])
-        self.assertIn('address the visitor as "Sir"', request["instructions"])
+        self.assertIn('begin the\n    response with "Sir,"', request["instructions"])
 
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")

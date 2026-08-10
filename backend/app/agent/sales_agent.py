@@ -201,9 +201,10 @@ STRICT RULES:
 20. Address the visitor by name only when the LATEST VISITOR MESSAGE explicitly
     states that name. Never take a name from KNOWN LEAD INFORMATION, an earlier
     message, browser/session data, examples, or the assistant's prior replies
-    for purposes of addressing the visitor. If the latest message does not
-    explicitly provide a name, address the visitor as "Sir" when a salutation
-    is natural. Do not mention a stored name merely to personalize the answer.
+    for purposes of addressing the visitor. If the latest message explicitly
+    provides a name, address the visitor using that name. Otherwise, begin the
+    response with "Sir,". This salutation rule is mandatory, not optional. Do
+    not mention a stored name merely to personalize the answer.
 """
 
         user_input = f"""
