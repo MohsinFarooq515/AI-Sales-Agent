@@ -43,6 +43,9 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/health").status_code, 200)
         self.assertEqual(self.client.get("/demo").status_code, 200)
         self.assertEqual(self.client.get("/admin").status_code, 200)
+        widget = self.client.get("/widget/widget.js").text
+        self.assertIn("sessionStorage.getItem('sits_agent_session')", widget)
+        self.assertIn("localStorage.removeItem('sits_agent_session')", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
