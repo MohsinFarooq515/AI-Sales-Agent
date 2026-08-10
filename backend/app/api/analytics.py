@@ -105,7 +105,7 @@ def dashboard(db: Session = Depends(get_db)):
                    "meetings_booked_or_requested": meetings},
         "popular_services": [{"name": name, "count": count} for name, count in services.most_common(10)],
         "frequently_asked_questions": [{"question": q, "count": count}
-                                        for q, count in Counter(questions).most_common(10)],
+                                        for q, count in Counter(questions).most_common(5)],
         "lead_status": stages,
         "lead_temperature": temperatures,
         "sales_performance": {"proposals": sum(1 for lead in leads if lead.wants_proposal),

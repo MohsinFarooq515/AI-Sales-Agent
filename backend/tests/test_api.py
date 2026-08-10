@@ -71,6 +71,7 @@ class ApiTests(unittest.TestCase):
         response = self.client.get("/api/admin/dashboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn("totals", response.json())
+        self.assertLessEqual(len(response.json()["frequently_asked_questions"]), 5)
 
     @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
     @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
