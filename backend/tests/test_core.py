@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from cryptography.fernet import Fernet
 
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
@@ -10,12 +10,29 @@ from app.agent.actions import build_browser_actions
 from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
-from app.agent.sales_agent import detect_response_language
+from app.agent.sales_agent import SalesAgentService, detect_response_language
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
 
 
 class LeadLogicTests(unittest.TestCase):
+    def test_stored_name_is_not_used_to_address_an_unintroduced_visitor(self):
+        service = object.__new__(SalesAgentService)
+        service.model = "test-model"
+        service.client = MagicMock()
+        service.client.responses.create.return_value.output_text = "Certainly, Sir."
+        service.generate_response(
+            "What do you recommend?",
+            [{"role": "assistant", "content": "Welcome back, Mohsin."}],
+            LeadProfile(full_name="Mohsin"),
+            "discovery",
+            retrieval_results=[],
+            response_language="English",
+        )
+        request = service.client.responses.create.call_args.kwargs
+        self.assertNotIn("Mohsin", request["input"])
+        self.assertIn('address the visitor as "Sir"', request["instructions"])
+
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
         self.assertEqual(

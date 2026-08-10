@@ -126,11 +126,22 @@ class SalesAgentService:
             knowledge_parts
         )
 
+        def response_history_content(message: Dict) -> str:
+            content = message["content"]
+            if lead.full_name:
+                content = re.sub(
+                    re.escape(lead.full_name),
+                    "[stored visitor name]",
+                    content,
+                    flags=re.IGNORECASE,
+                )
+            return content
+
         history_text = "\n".join(
             [
                 (
                     f"{message['role'].capitalize()}: "
-                    f"{message['content']}"
+                    f"{response_history_content(message)}"
                 )
                 for message in conversation_history[-12:]
             ]
@@ -187,6 +198,12 @@ STRICT RULES:
 17. Handle objections with evidence and a low-pressure next step.
 18. Cross-sell only relevant services supported by website context.
 19. When useful, tell the visitor a relevant page action is available.
+20. Address the visitor by name only when the LATEST VISITOR MESSAGE explicitly
+    states that name. Never take a name from KNOWN LEAD INFORMATION, an earlier
+    message, browser/session data, examples, or the assistant's prior replies
+    for purposes of addressing the visitor. If the latest message does not
+    explicitly provide a name, address the visitor as "Sir" when a salutation
+    is natural. Do not mention a stored name merely to personalize the answer.
 """
 
         user_input = f"""
@@ -268,7 +285,6 @@ Respond naturally and entirely in the language required by that directive.
     ) -> str:
 
         values = {
-            "Name": lead.full_name,
             "Company": lead.company_name,
             "Email": lead.email,
             "Phone": lead.phone,
