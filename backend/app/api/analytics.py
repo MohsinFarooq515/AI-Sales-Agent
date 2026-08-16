@@ -29,6 +29,12 @@ def require_admin(x_admin_key: Optional[str] = Header(default=None)):
         raise HTTPException(status_code=401, detail="Invalid admin key")
 
 
+@router.get("/admin/auth", dependencies=[Depends(require_admin)])
+def verify_admin_key():
+    """Validate dashboard access without returning protected data."""
+    return {"authenticated": True}
+
+
 @router.post("/events", status_code=202)
 def track_event(request: EventRequest, db: Session = Depends(get_db)):
     add_analytics_event(db, request.event_type, request.session_id, request.data)

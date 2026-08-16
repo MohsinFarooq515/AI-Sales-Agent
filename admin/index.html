@@ -1,4 +1,27 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sales Agent CRM</title><link rel="stylesheet" href="/admin-assets/style.css"></head>
-<body><header><div><small>SYSTEMATIC IT SOLUTIONS</small><h1>AI Sales Dashboard & CRM</h1></div><div><button id="calendar">Connect Google</button> <button id="refresh">Refresh</button></div></header>
-<main><div id="error"></div><section id="metrics" class="grid"></section><section class="split"><article><h2>Popular services</h2><div id="services"></div></article><article><h2>Lead pipeline</h2><div id="pipeline"></div></article></section><section class="dashboard-details"><article><h2>Frequently asked questions</h2><div id="faqs"></div></article><article><h2>AI performance</h2><div id="ai-performance"></div></article><article><h2>Sales performance</h2><div id="sales-performance"></div></article><article><h2>Lead temperature</h2><div id="temperature"></div></article></section><article><h2>Demo CRM</h2><p>Manage lead status, ownership, follow-up reminders, notes, and live replies.</p><div class="table-wrap"><table><thead><tr><th>Lead</th><th>Services</th><th>Score</th><th>Status</th><th>Owner / follow-up</th><th>Actions</th></tr></thead><tbody id="leads"></tbody></table></div></article></main><script src="/admin-assets/dashboard.js?v=5"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sales Agent CRM</title>
+  <link rel="stylesheet" href="/admin-assets/style.css?v=7">
+</head>
+<body>
+  <section id="login" class="login-screen">
+    <form id="login-form" class="login-card">
+      <small>SYSTEMATIC IT SOLUTIONS</small>
+      <h1>Dashboard access</h1>
+      <p>Enter the administrator API key to continue.</p>
+      <label for="admin-key">Admin API key</label>
+      <input id="admin-key" type="password" autocomplete="current-password" required autofocus>
+      <div id="login-error" role="alert"></div>
+      <button type="submit">Open dashboard</button>
+    </form>
+  </section>
+  <div id="dashboard" hidden>
+    <header><div><small>SYSTEMATIC IT SOLUTIONS</small><h1>AI Sales Dashboard & CRM</h1></div><div><button id="calendar">Connect Google</button> <button id="refresh">Refresh</button></div></header>
+    <main><div id="error"></div><section id="metrics" class="grid"></section><section class="split"><article><h2>Popular services</h2><div id="services"></div></article><article><h2>Lead pipeline</h2><div id="pipeline"></div></article></section><section class="dashboard-details"><article><h2>Frequently asked questions</h2><div id="faqs"></div></article><article><h2>AI performance</h2><div id="ai-performance"></div></article><article><h2>Sales performance</h2><div id="sales-performance"></div></article><article><h2>Lead temperature</h2><div id="temperature"></div></article></section><article><h2>Demo CRM</h2><p>Manage lead status, ownership, follow-up reminders, notes, and live replies.</p><div class="table-wrap"><table><thead><tr><th>Lead</th><th>Services</th><th>Score</th><th>Status</th><th>Owner / follow-up</th><th>Actions</th></tr></thead><tbody id="leads"></tbody></table></div></article></main>
+  </div>
+  <script src="/admin-assets/dashboard.js?v=7"></script>
+</body>
+</html>
