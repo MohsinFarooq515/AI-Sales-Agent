@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
@@ -48,7 +49,8 @@ def sync_lead_to_sheet(db: Session, payload):
     row_number = next((index for index, row in enumerate(existing, 1)
                        if row and row[0] == session_id), None)
     history = json.dumps(payload.get("conversation_history", []), ensure_ascii=False)
-    row = [session_id, payload.get("updated_at", ""), payload.get("full_name", ""),
+    updated_at = payload.get("updated_at") or datetime.now(timezone.utc).isoformat()
+    row = [session_id, updated_at, payload.get("full_name", ""),
            payload.get("company_name", ""), payload.get("email", ""), payload.get("phone", ""),
            payload.get("website_url", ""), payload.get("industry", ""),
            ", ".join(payload.get("required_services", [])), payload.get("business_problem", ""),
