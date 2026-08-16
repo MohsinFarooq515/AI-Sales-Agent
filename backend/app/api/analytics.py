@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.models import (CrmLeadUpdate, EventRequest, HumanReplyRequest, InquiryRequest,
@@ -33,6 +33,38 @@ def require_admin(x_admin_key: Optional[str] = Header(default=None)):
 def verify_admin_key():
     """Validate dashboard access without returning protected data."""
     return {"authenticated": True}
+
+
+@router.delete("/admin/demo-data", dependencies=[Depends(require_admin)])
+def clear_demo_data(confirm: str, db: Session = Depends(get_db)):
+    """Clear visitor and sales activity while preserving knowledge and integrations."""
+    if confirm != "RESET_DEMO_DATA":
+        raise HTTPException(status_code=400, detail="Reset confirmation is incorrect")
+
+    counts = {
+        "conversations": db.scalar(select(func.count()).select_from(ConversationDB)) or 0,
+        "messages": db.scalar(select(func.count()).select_from(MessageDB)) or 0,
+        "leads": db.scalar(select(func.count()).select_from(LeadDB)) or 0,
+        "analytics_events": db.scalar(select(func.count()).select_from(AnalyticsEventDB)) or 0,
+        "integration_deliveries": db.scalar(
+            select(func.count()).select_from(IntegrationDeliveryDB)
+        ) or 0,
+        "crm_lead_states": db.scalar(select(func.count()).select_from(CrmLeadStateDB)) or 0,
+    }
+
+    # Delete dependants before conversations. Knowledge embeddings, OAuth credentials,
+    # and integration/knowledge-refresh settings intentionally remain untouched.
+    for model in (
+        CrmLeadStateDB,
+        IntegrationDeliveryDB,
+        AnalyticsEventDB,
+        MessageDB,
+        LeadDB,
+        ConversationDB,
+    ):
+        db.execute(delete(model))
+    db.commit()
+    return {"cleared": True, "deleted": counts}
 
 
 @router.post("/events", status_code=202)
