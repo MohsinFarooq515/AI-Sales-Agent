@@ -17,6 +17,7 @@ from app.db.models import (AnalyticsEventDB, ConversationDB, CrmLeadStateDB, Int
                            IntegrationDeliveryDB, LeadDB, MessageDB)
 from app.db.repository import add_analytics_event, add_message, get_lead_profile, save_lead_profile
 from app.integrations.webhooks import sync_lead_background
+from app.integrations.email_notifications import send_visitor_reply
 
 
 router = APIRouter(prefix="/api", tags=["Analytics"])
@@ -237,7 +238,15 @@ def human_reply(session_id: str, request: HumanReplyRequest, db: Session = Depen
         raise HTTPException(status_code=404, detail="Conversation not found")
     message = add_message(db, session_id, "assistant", request.message.strip())
     add_analytics_event(db, "handover.agent_reply", session_id)
-    return {"id": message.id, "delivered": True}
+    lead = get_lead_profile(db, session_id)
+    if not lead.email:
+        return {"id": message.id, "delivered": True,
+                "email_status": "skipped_no_email"}
+    email_delivery = send_visitor_reply(
+        db, session_id, lead.email, lead.full_name or "", request.message.strip()
+    )
+    return {"id": message.id, "delivered": True,
+            "email_status": email_delivery.status}
 
 
 @router.get("/inquiries/{session_id}")
