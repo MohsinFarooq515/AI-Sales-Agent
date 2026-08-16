@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.db.models import ConversationDB, GoogleCalendarCredentialDB, IntegrationSettingDB
 from app.db.repository import add_analytics_event, get_lead_profile
 from app.integrations.google_calendar import authorization_url, create_event, exchange_code
+from app.integrations.google_sheets import clear_lead_rows
 from app.integrations.webhooks import sync_lead_background
 
 
@@ -37,6 +38,14 @@ def status(db: Session = Depends(get_db)):
             "spreadsheet_id": spreadsheet_id,
             "spreadsheet_url": (f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
                                 if spreadsheet_id else None)}
+
+
+@router.delete("/sheet-records", dependencies=[Depends(require_admin)])
+def clear_sheet_records(confirm: str, db: Session = Depends(get_db)):
+    if confirm != "CLEAR_GOOGLE_SHEET_RECORDS":
+        raise HTTPException(400, "Clear confirmation is incorrect")
+    spreadsheet_id = clear_lead_rows(db)
+    return {"cleared": True, "spreadsheet_id": spreadsheet_id, "preserved_header": True}
 
 
 @router.post("/book")

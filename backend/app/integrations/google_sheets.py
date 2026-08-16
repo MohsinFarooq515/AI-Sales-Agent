@@ -64,3 +64,16 @@ def sync_lead_to_sheet(db: Session, payload):
                                              "insertDataOption": "INSERT_ROWS"},
                  json={"values": [row]})
     return spreadsheet_id
+
+
+def clear_lead_rows(db: Session):
+    """Clear lead data rows while preserving the spreadsheet and header row."""
+    token = access_token(db)
+    spreadsheet_id = _spreadsheet_id(db, token)
+    clear_range = quote("Leads!A2:R", safe="!")
+    _request("POST", f"{SHEETS_API}/{spreadsheet_id}/values/{clear_range}:clear",
+             token, json={})
+    # Reassert the expected header so the clean sheet remains ready for new leads.
+    _request("PUT", f"{SHEETS_API}/{spreadsheet_id}/values/Leads!A1:R1",
+             token, params={"valueInputOption": "RAW"}, json={"values": [HEADERS]})
+    return spreadsheet_id
