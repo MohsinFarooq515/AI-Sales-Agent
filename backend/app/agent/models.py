@@ -20,6 +20,7 @@ class SalesStage(str, Enum):
 
 class LeadProfile(BaseModel):
     full_name: Optional[str] = None
+    persona: Optional[str] = None
     company_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -36,6 +37,7 @@ class LeadProfile(BaseModel):
     timeline: Optional[str] = None
 
     wants_meeting: bool = False
+    meeting_booked: bool = False
     wants_callback: bool = False
     wants_proposal: bool = False
     requested_human: bool = False
@@ -45,6 +47,7 @@ class LeadProfile(BaseModel):
 
 class LeadExtraction(BaseModel):
     full_name: Optional[str] = None
+    persona: Optional[str] = None
     company_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None

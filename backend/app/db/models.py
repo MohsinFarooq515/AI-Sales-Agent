@@ -117,6 +117,7 @@ class LeadDB(Base):
     )
 
     full_name = Column(String(200))
+    persona = Column(String(50))
     company_name = Column(String(200))
     email = Column(String(320))
     phone = Column(String(100))
@@ -134,6 +135,12 @@ class LeadDB(Base):
     )
 
     wants_meeting = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    meeting_booked = Column(
         Boolean,
         default=False,
         nullable=False,

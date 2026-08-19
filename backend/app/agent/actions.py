@@ -5,12 +5,19 @@ from app.core.config import settings
 
 
 def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProfile) -> List[Dict]:
-    """Translate conversational intent into safe actions executed by the widget."""
+    """Build safe actions that reflect the visitor's current contact state."""
     text = user_message.casefold()
     actions = []
-    if any(word in text for word in ("book", "appointment", "meeting", "schedule")):
-        actions.append({"type": "book_meeting", "label": "Book with Google Calendar",
+    has_contact = bool(lead.email or lead.phone)
+    conversion_ready = bool(lead.business_problem or lead.required_services)
+    meeting_requested = any(
+        word in text for word in ("book", "appointment", "meeting", "schedule")
+    )
+    if not lead.meeting_booked and (conversion_ready or meeting_requested or has_contact):
+        actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
+    if conversion_ready and not has_contact and not lead.meeting_booked:
+        actions.append({"type": "share_email", "label": "Share my email"})
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:
         actions.append({"type": "call", "label": "Call us", "url": f"tel:{settings.company_phone}"})
     if any(word in text for word in ("contact form", "inquiry", "proposal", "quote")):

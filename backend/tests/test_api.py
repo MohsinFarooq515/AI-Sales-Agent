@@ -51,6 +51,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("link.target='_blank'", widget)
         self.assertIn("function requestChatStream", widget)
         self.assertIn("[502,503,504]", widget)
+        self.assertIn("May I have your name, please?", widget)
+        self.assertIn("a.type==='share_email'", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
@@ -103,6 +105,34 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("totals", response.json())
         self.assertLessEqual(len(response.json()["frequently_asked_questions"]), 5)
+
+    @patch("app.api.google_calendar.sync_lead_background")
+    @patch("app.api.google_calendar.create_event")
+    def test_booking_captures_name_email_and_meeting_status(self, create_event, sync):
+        create_event.return_value = {
+            "id": "event-1",
+            "htmlLink": "https://calendar.google.com/event-1",
+            "hangoutLink": "https://meet.google.com/example",
+        }
+        session_id = str(uuid.uuid4())
+        with self.session_factory() as db:
+            from app.db.repository import get_or_create_conversation
+            get_or_create_conversation(db, session_id)
+        response = self.client.post("/api/google-calendar/book", json={
+            "session_id": session_id,
+            "start": "2030-01-02T10:00:00Z",
+            "timezone": "UTC",
+            "name": "Ahmed Khan",
+            "email": "ahmed@example.com",
+        })
+        self.assertEqual(response.status_code, 200)
+        with self.session_factory() as db:
+            from app.db.repository import get_lead_profile
+            lead = get_lead_profile(db, session_id)
+        self.assertEqual(lead.full_name, "Ahmed Khan")
+        self.assertEqual(lead.email, "ahmed@example.com")
+        self.assertTrue(lead.wants_meeting)
+        self.assertTrue(lead.meeting_booked)
 
     def test_dashboard_is_public_but_crm_writes_remain_protected(self):
         app.dependency_overrides.pop(require_admin, None)
@@ -158,7 +188,7 @@ class ApiTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["lead"]["temperature"], "warm")
         self.assertEqual(body["sales_stage"], "qualification")
-        self.assertEqual(body["actions"][0]["type"], "navigate")
+        self.assertIn("navigate", {action["type"] for action in body["actions"]})
         history = self.client.get(f'/api/conversations/{body["session_id"]}')
         self.assertEqual(len(history.json()["messages"]), 2)
         reply = self.client.post(f'/api/admin/conversations/{body["session_id"]}/reply',

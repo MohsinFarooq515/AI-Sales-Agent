@@ -12,12 +12,13 @@ from app.api.analytics import router as analytics_router
 from app.api.google_calendar import router as google_calendar_router
 from app.core.config import settings
 from app.rag.refresh import refresh_knowledge
-from app.db.database import Base, engine
+from app.db.database import Base, apply_compatible_schema_updates, engine
 
 
 Base.metadata.create_all(
     bind=engine
 )
+apply_compatible_schema_updates()
 
 
 app = FastAPI(

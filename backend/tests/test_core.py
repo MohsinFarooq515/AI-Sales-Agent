@@ -12,6 +12,7 @@ from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
 from app.agent.sales_agent import (SalesAgentService, detect_response_language,
                                    extract_explicit_visitor_name,
+                                   extract_initial_name_reply,
                                    normalize_visitor_address)
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
@@ -44,6 +45,9 @@ class LeadLogicTests(unittest.TestCase):
             "Ana María",
         )
         self.assertIsNone(extract_explicit_visitor_name("I need SEO for Mohsin Ltd."))
+        self.assertEqual(extract_initial_name_reply("Ahmed Khan"), "Ahmed Khan")
+        self.assertEqual(extract_initial_name_reply("I'm Ahmed"), "Ahmed")
+        self.assertIsNone(extract_initial_name_reply("I need a website"))
 
     def test_name_collected_in_current_session_is_reused(self):
         service = object.__new__(SalesAgentService)
@@ -59,10 +63,13 @@ class LeadLogicTests(unittest.TestCase):
             response_language="English",
         )
         request = service.client.responses.create.call_args.kwargs
-        self.assertNotIn("Mohsin", request["input"].split("LATEST VISITOR MESSAGE:")[0])
-        self.assertIn("application adds the MANDATORY VISITOR ADDRESS", request["instructions"])
-        self.assertIn("MANDATORY VISITOR ADDRESS: Mohsin", request["input"])
-        self.assertTrue(result["answer"].startswith("Mohsin,"))
+        history_section = request["input"].split("RECENT CONVERSATION:", 1)[1].split(
+            "RELEVANT WEBSITE KNOWLEDGE:", 1
+        )[0]
+        self.assertNotIn("Mohsin", history_section)
+        self.assertIn("visitors who may know nothing about", request["instructions"])
+        self.assertIn("CONTACT STATUS:\nNO_CONTACT", request["input"])
+        self.assertEqual(result["answer"], "Here is the plan.")
 
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
@@ -110,6 +117,33 @@ class LeadLogicTests(unittest.TestCase):
             {"title": "Local SEO", "url": "https://systematicitsolutions.com/seo/local-seo"}
         ], LeadProfile())
         self.assertEqual({a["type"] for a in actions}, {"book_meeting", "call", "navigate"})
+
+    @patch("app.agent.actions.settings")
+    def test_conversion_actions_follow_contact_status(self, settings):
+        settings.app_base_url = "https://example.com"
+        settings.company_phone = ""
+        anonymous = build_browser_actions(
+            "My website gets no customers", [],
+            LeadProfile(business_problem="Website gets no customers"),
+        )
+        self.assertEqual(
+            [action["type"] for action in anonymous],
+            ["book_meeting", "share_email"],
+        )
+        identified = build_browser_actions(
+            "Here is my email", [],
+            LeadProfile(email="lead@example.com", business_problem="Low sales"),
+        )
+        self.assertEqual([action["type"] for action in identified], ["book_meeting"])
+        booked = build_browser_actions(
+            "Tell me more", [],
+            LeadProfile(email="lead@example.com", wants_meeting=True, meeting_booked=True),
+        )
+        self.assertEqual(booked, [])
+        requested = build_browser_actions(
+            "I want a meeting", [], LeadProfile(wants_meeting=True)
+        )
+        self.assertEqual(requested[0]["type"], "book_meeting")
 
 
 if __name__ == "__main__":

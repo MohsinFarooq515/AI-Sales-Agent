@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -40,6 +40,18 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+
+def apply_compatible_schema_updates():
+    """Add nullable lead fields introduced after the initial demo schema."""
+    columns = {column["name"] for column in inspect(engine).get_columns("leads")}
+    with engine.begin() as connection:
+        if "persona" not in columns:
+            connection.execute(text("ALTER TABLE leads ADD COLUMN persona VARCHAR(50)"))
+        if "meeting_booked" not in columns:
+            connection.execute(text(
+                "ALTER TABLE leads ADD COLUMN meeting_booked BOOLEAN NOT NULL DEFAULT 0"
+            ))
 
 
 def get_db():

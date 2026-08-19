@@ -20,6 +20,7 @@ from app.agent.lead_scoring import (
 from app.agent.sales_agent import (
     SalesAgentService,
     extract_explicit_visitor_name,
+    extract_initial_name_reply,
 )
 from app.agent.sales_stage import (
     determine_sales_stage,
@@ -125,6 +126,8 @@ def _process_chat(request, background_tasks, db, on_delta=None):
     # model-based lead extractor. Persist the name in this isolated session
     # before response generation so the current and later replies can use it.
     explicit_visitor_name = extract_explicit_visitor_name(message)
+    if not explicit_visitor_name and len(get_messages(db, conversation.id)) == 1:
+        explicit_visitor_name = extract_initial_name_reply(message)
     if explicit_visitor_name:
         lead.full_name = explicit_visitor_name
     previous_score = lead.score
@@ -149,16 +152,6 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         retrieval_results = retrieval_future.result()
         response_language = sales_agent.identify_response_language(message)
         history = [{"role": item.role, "content": item.content} for item in messages]
-        response_future = external_executor.submit(
-            sales_agent.generate_response,
-            message,
-            history,
-            lead.model_copy(deep=True),
-            determine_sales_stage(lead).value,
-            retrieval_results,
-            response_language,
-            on_delta,
-        )
         extracted = extraction_future.result()
     except OpenAIError as exc:
         raise HTTPException(status_code=503,
@@ -179,6 +172,19 @@ def _process_chat(request, background_tasks, db, on_delta=None):
 
     stage = determine_sales_stage(
         lead
+    )
+
+    # Generate from the updated profile so the same turn can thank a visitor
+    # for a newly supplied email and never ask for information just captured.
+    response_future = external_executor.submit(
+        sales_agent.generate_response,
+        message,
+        history,
+        lead.model_copy(deep=True),
+        stage.value,
+        retrieval_results,
+        response_language,
+        on_delta,
     )
 
     conversation.stage = stage.value
@@ -267,6 +273,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
             score=lead.score,
             temperature=temperature,
             full_name=lead.full_name,
+            persona=lead.persona,
             company_name=lead.company_name,
             email=lead.email,
             phone=lead.phone,

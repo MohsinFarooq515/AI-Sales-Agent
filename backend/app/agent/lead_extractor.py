@@ -25,6 +25,17 @@ LEAD_EXTRACTION_SCHEMA = {
         "full_name": {
             "type": ["string", "null"]
         },
+        "persona": {
+            "type": ["string", "null"],
+            "enum": [
+                "entrepreneur",
+                "solopreneur",
+                "company_representative",
+                "aspiring_entrepreneur",
+                "general_visitor",
+                None
+            ]
+        },
         "company_name": {
             "type": ["string", "null"]
         },
@@ -73,6 +84,7 @@ LEAD_EXTRACTION_SCHEMA = {
     },
     "required": [
         "full_name",
+        "persona",
         "company_name",
         "email",
         "phone",
@@ -143,6 +155,12 @@ Rules:
 9. For required_services, return an empty array when none were explicitly
    mentioned.
 10. Set intent booleans only when the visitor clearly expresses that intent.
+11. Classify persona only from the visitor's explicit description:
+    entrepreneur = owns/runs a business; solopreneur = freelancer, consultant,
+    creator, or independent professional; company_representative = represents
+    an employer/organization; aspiring_entrepreneur = planning a new business;
+    general_visitor = explicitly personal/educational/another known purpose.
+    Return null when it is still unclear.
 """
 
         response_options = {}
@@ -180,6 +198,7 @@ def merge_lead_profile(
 
     string_fields = [
         "full_name",
+        "persona",
         "company_name",
         "email",
         "phone",

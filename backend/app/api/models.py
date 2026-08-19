@@ -22,6 +22,7 @@ class LeadSummaryResponse(BaseModel):
     temperature: str
 
     full_name: Optional[str] = None
+    persona: Optional[str] = None
     company_name: Optional[str] = None
     email: Optional[str] = None
 

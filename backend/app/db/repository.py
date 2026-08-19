@@ -100,6 +100,7 @@ def get_lead_profile(
 
     return LeadProfile(
         full_name=record.full_name,
+        persona=getattr(record, "persona", None),
         company_name=record.company_name,
         email=record.email,
         phone=record.phone,
@@ -113,6 +114,7 @@ def get_lead_profile(
         budget=record.budget,
         timeline=record.timeline,
         wants_meeting=record.wants_meeting,
+        meeting_booked=getattr(record, "meeting_booked", False),
         wants_callback=record.wants_callback,
         wants_proposal=record.wants_proposal,
         requested_human=record.requested_human,
@@ -143,6 +145,7 @@ def save_lead_profile(
         db.add(record)
 
     record.full_name = lead.full_name
+    record.persona = lead.persona
     record.company_name = lead.company_name
     record.email = lead.email
     record.phone = lead.phone
@@ -161,6 +164,7 @@ def save_lead_profile(
     record.wants_meeting = (
         lead.wants_meeting
     )
+    record.meeting_booked = lead.meeting_booked
     record.wants_callback = (
         lead.wants_callback
     )
