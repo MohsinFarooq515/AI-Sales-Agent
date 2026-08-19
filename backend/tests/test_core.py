@@ -13,6 +13,8 @@ from app.agent.sales_stage import determine_sales_stage
 from app.agent.sales_agent import (SalesAgentService, detect_response_language,
                                    extract_explicit_visitor_name,
                                    extract_initial_name_reply,
+                                   is_language_neutral_message,
+                                   resolve_response_language,
                                    normalize_visitor_address)
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
@@ -82,6 +84,26 @@ class LeadLogicTests(unittest.TestCase):
             "Urdu written in Roman script",
         )
         self.assertEqual(detect_response_language("مجھے ویب سائٹ چاہیے"), "Urdu or Arabic")
+
+    def test_language_neutral_contact_details_keep_previous_language(self):
+        history = [
+            {"role": "user", "content": "I need help marketing my school."},
+            {"role": "assistant", "content": "How can we contact you?"},
+            {"role": "user", "content": "mohsin@yopmail.com"},
+        ]
+        self.assertTrue(is_language_neutral_message("mohsin@yopmail.com"))
+        self.assertTrue(is_language_neutral_message("+92 300 1234567"))
+        self.assertEqual(
+            resolve_response_language("mohsin@yopmail.com", history), "English"
+        )
+        portuguese_history = [
+            {"role": "user", "content": "Como posso melhorar minha empresa?"},
+            {"role": "user", "content": "cliente@example.com"},
+        ]
+        self.assertEqual(
+            resolve_response_language("cliente@example.com", portuguese_history),
+            "Portuguese",
+        )
 
     @patch("app.core.security.settings")
     def test_secret_encryption_round_trip(self, settings):

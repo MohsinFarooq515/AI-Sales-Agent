@@ -53,6 +53,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("[502,503,504]", widget)
         self.assertIn("May I have your name, please?", widget)
         self.assertIn("a.type==='share_email'", widget)
+        self.assertIn("function showEmailCapture", widget)
+        self.assertIn("Submit email", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})

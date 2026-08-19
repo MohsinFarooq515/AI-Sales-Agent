@@ -150,8 +150,8 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         extraction_future = external_executor.submit(lead_extractor.extract, message)
         retrieval_future = external_executor.submit(sales_agent.retrieve_knowledge, message)
         retrieval_results = retrieval_future.result()
-        response_language = sales_agent.identify_response_language(message)
         history = [{"role": item.role, "content": item.content} for item in messages]
+        response_language = sales_agent.identify_response_language(message, history)
         extracted = extraction_future.result()
     except OpenAIError as exc:
         raise HTTPException(status_code=503,

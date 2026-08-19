@@ -59,6 +59,37 @@ def detect_response_language(text: str) -> str:
     return language if score else "Detect from the latest visitor message"
 
 
+def is_language_neutral_message(text: str) -> bool:
+    """Return True when a message cannot reliably signal a language."""
+    value = text.strip()
+    if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+        return True
+    if re.fullmatch(r"(?:https?://|www\.)\S+", value, flags=re.IGNORECASE):
+        return True
+    if re.fullmatch(r"[+()\d\s.-]{7,}", value):
+        return True
+    return not any(character.isalpha() for character in value)
+
+
+def resolve_response_language(text: str, conversation_history: List[Dict]) -> str:
+    """Keep the prior visitor language when the latest input is neutral."""
+    latest_hint = detect_response_language(text)
+    if not is_language_neutral_message(text):
+        return latest_hint
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "user" or message.get("content") == text:
+            continue
+        previous_text = message.get("content", "")
+        if is_language_neutral_message(previous_text):
+            continue
+        previous_hint = detect_response_language(previous_text)
+        if previous_hint != "Detect from the latest visitor message":
+            return previous_hint
+
+    return "English"
+
+
 def extract_explicit_visitor_name(text: str) -> Optional[str]:
     """Extract a name only when the latest message explicitly introduces it."""
     match = re.search(
@@ -147,9 +178,13 @@ class SalesAgentService:
             index_file=index_file
         )
 
-    def identify_response_language(self, user_message: str) -> str:
-        """Return a fast hint; the response model performs final detection."""
-        return detect_response_language(user_message)
+    def identify_response_language(
+        self,
+        user_message: str,
+        conversation_history: Optional[List[Dict]] = None,
+    ) -> str:
+        """Return a fast hint while preserving language across neutral inputs."""
+        return resolve_response_language(user_message, conversation_history or [])
 
     def generate_response(
         self,
