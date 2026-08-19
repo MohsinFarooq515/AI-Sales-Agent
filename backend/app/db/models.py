@@ -29,6 +29,8 @@ class ConversationDB(Base):
         nullable=False,
     )
 
+    last_conversion_prompt_turn = Column(Integer, nullable=True)
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,

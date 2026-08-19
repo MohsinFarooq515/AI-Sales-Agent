@@ -1,22 +1,51 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from app.agent.models import LeadProfile
 from app.core.config import settings
 
 
-def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProfile) -> List[Dict]:
+CONVERSION_PROMPT_COOLDOWN_TURNS = 4
+
+
+def visitor_requested_meeting(user_message: str) -> bool:
+    text = user_message.casefold()
+    return any(word in text for word in ("book", "appointment", "meeting", "schedule"))
+
+
+def should_offer_conversion(
+    user_message: str,
+    lead: LeadProfile,
+    visitor_turn: int,
+    last_prompt_turn: Optional[int],
+) -> bool:
+    """Allow conversion prompts initially, explicitly, or after a cooldown."""
+    if lead.meeting_booked:
+        return False
+    if visitor_requested_meeting(user_message):
+        return True
+    if not (lead.business_problem or lead.required_services):
+        return False
+    if last_prompt_turn is None:
+        return True
+    return visitor_turn - last_prompt_turn >= CONVERSION_PROMPT_COOLDOWN_TURNS
+
+
+def build_browser_actions(
+    user_message: str,
+    sources: List[Dict],
+    lead: LeadProfile,
+    show_conversion: bool = True,
+) -> List[Dict]:
     """Build safe actions that reflect the visitor's current contact state."""
     text = user_message.casefold()
     actions = []
     has_contact = bool(lead.email or lead.phone)
     conversion_ready = bool(lead.business_problem or lead.required_services)
-    meeting_requested = any(
-        word in text for word in ("book", "appointment", "meeting", "schedule")
-    )
-    if not lead.meeting_booked and (conversion_ready or meeting_requested):
+    meeting_requested = visitor_requested_meeting(user_message)
+    if show_conversion and not lead.meeting_booked and (conversion_ready or meeting_requested):
         actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
-    if conversion_ready and not has_contact and not lead.meeting_booked:
+    if show_conversion and conversion_ready and not has_contact and not lead.meeting_booked:
         actions.append({"type": "share_email", "label": "Share my email"})
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:
         actions.append({"type": "call", "label": "Call us", "url": f"tel:{settings.company_phone}"})

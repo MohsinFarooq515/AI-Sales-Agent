@@ -6,7 +6,7 @@ from cryptography.fernet import Fernet
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("OPENAI_CHAT_MODEL", "test-model")
 
-from app.agent.actions import build_browser_actions
+from app.agent.actions import build_browser_actions, should_offer_conversion
 from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
@@ -170,6 +170,14 @@ class LeadLogicTests(unittest.TestCase):
             "James Here", [], LeadProfile(full_name="James Here", email="old@example.com")
         )
         self.assertEqual(name_only, [])
+
+    def test_conversion_prompt_observes_cooldown_but_explicit_request_bypasses_it(self):
+        lead = LeadProfile(business_problem="Needs more customers")
+        self.assertTrue(should_offer_conversion("I need help", lead, 2, None))
+        self.assertFalse(should_offer_conversion("Here is my email", lead, 3, 2))
+        self.assertFalse(should_offer_conversion("Tell me more", lead, 5, 2))
+        self.assertTrue(should_offer_conversion("What should I do next?", lead, 6, 2))
+        self.assertTrue(should_offer_conversion("Book a meeting", lead, 3, 2))
 
     def test_first_post_name_response_only_asks_for_purpose(self):
         service = object.__new__(SalesAgentService)

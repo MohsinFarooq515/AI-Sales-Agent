@@ -25,7 +25,7 @@ from app.agent.sales_agent import (
 from app.agent.sales_stage import (
     determine_sales_stage,
 )
-from app.agent.actions import build_browser_actions
+from app.agent.actions import build_browser_actions, should_offer_conversion
 
 from app.api.models import (
     ChatRequest,
@@ -174,6 +174,14 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         lead
     )
 
+    visitor_turn = sum(1 for item in messages if item.role == "user")
+    allow_conversion_prompt = should_offer_conversion(
+        message,
+        lead,
+        visitor_turn,
+        conversation.last_conversion_prompt_turn,
+    )
+
     # Generate from the updated profile so the same turn can thank a visitor
     # for a newly supplied email and never ask for information just captured.
     response_future = external_executor.submit(
@@ -184,6 +192,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         stage.value,
         retrieval_results,
         response_language,
+        allow_conversion_prompt,
         on_delta,
     )
 
@@ -235,6 +244,15 @@ def _process_chat(request, background_tasks, db, on_delta=None):
     # Save response
     # -----------------------------------
 
+    actions = build_browser_actions(
+        message,
+        result["sources"],
+        lead,
+        show_conversion=allow_conversion_prompt,
+    )
+    if any(action["type"] in ("book_meeting", "share_email") for action in actions):
+        conversation.last_conversion_prompt_turn = visitor_turn
+
     assistant_message = add_message(
         db=db,
         conversation_id=conversation.id,
@@ -284,7 +302,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
             ),
         ),
         sources=result["sources"],
-        actions=build_browser_actions(message, result["sources"], lead),
+        actions=actions,
     )
 
 

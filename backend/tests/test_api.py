@@ -99,6 +99,47 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(second.json()["lead"]["full_name"], "Demo Lead")
         self.assertEqual(generate.call_args_list[1].args[2].full_name, "Demo Lead")
 
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.sales_agent.generate_response",
+           return_value={"answer": "Helpful reply", "sources": []})
+    @patch("app.api.chat.lead_extractor.extract")
+    def test_conversion_actions_are_suppressed_during_cooldown(
+            self, extract, generate, identify, retrieve):
+        extract.side_effect = [
+            LeadExtraction(business_problem="Website gets few customers"),
+            LeadExtraction(email="james@example.com"),
+            LeadExtraction(persona="entrepreneur"),
+            LeadExtraction(industry="Hospitality"),
+            LeadExtraction(timeline="This month"),
+        ]
+        session_id = str(uuid.uuid4())
+        messages = [
+            "My website gets very few customers",
+            "james@example.com",
+            "It is for my own business",
+            "I work in hospitality",
+            "I want to begin this month",
+        ]
+        responses = [self.client.post("/api/chat", json={
+            "message": message, "session_id": session_id,
+        }).json() for message in messages]
+
+        self.assertEqual(
+            [action["type"] for action in responses[0]["actions"]],
+            ["book_meeting", "share_email"],
+        )
+        self.assertEqual(responses[1]["actions"], [])
+        self.assertEqual(responses[2]["actions"], [])
+        self.assertEqual(responses[3]["actions"], [])
+        self.assertEqual(
+            [action["type"] for action in responses[4]["actions"]],
+            ["book_meeting"],
+        )
+        # The model receives the same cadence directive as the UI actions.
+        self.assertFalse(generate.call_args_list[1].args[6])
+        self.assertTrue(generate.call_args_list[4].args[6])
+
     def test_event_and_dashboard(self):
         self.assertEqual(self.client.post("/api/events", json={
             "event_type": "visitor.page_view", "data": {"url": "https://example.com"}

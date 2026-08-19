@@ -52,6 +52,15 @@ def apply_compatible_schema_updates():
             connection.execute(text(
                 "ALTER TABLE leads ADD COLUMN meeting_booked BOOLEAN NOT NULL DEFAULT 0"
             ))
+    conversation_columns = {
+        column["name"] for column in inspect(engine).get_columns("conversations")
+    }
+    if "last_conversion_prompt_turn" not in conversation_columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE conversations "
+                "ADD COLUMN last_conversion_prompt_turn INTEGER"
+            ))
 
 
 def get_db():

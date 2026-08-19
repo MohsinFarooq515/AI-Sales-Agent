@@ -194,6 +194,7 @@ class SalesAgentService:
         sales_stage: str,
         retrieval_results: Optional[List[Dict]] = None,
         response_language: Optional[str] = None,
+        allow_conversion_prompt: bool = True,
         on_delta: Optional[Callable[[str], None]] = None,
     ) -> Dict:
         results = retrieval_results if retrieval_results is not None else self.retrieve_knowledge(user_message)
@@ -332,13 +333,11 @@ STRICT RULES:
     - If a name is known but no purpose/problem is known, say "Nice to meet
       you, [name]!" and ask what they would like help with today.
     - Once a purpose/problem is known and CONTACT STATUS is NO_CONTACT, answer
-      it briefly in human and practical terms, then invite a short meeting or
-      email follow-up. If they ignore the invitation and ask something else,
-      answer that question first and then invite again naturally.
+      it briefly in human and practical terms. Invite a short meeting or email
+      follow-up only when CONVERSION PROMPT ALLOWED is YES.
     - If CONTACT STATUS is EMAIL_CAPTURED, thank them when the latest message
-      supplied the email, explain the value of a short specialist meeting, and
-      invite them to choose a suitable time. On later turns, continue useful
-      qualification and re-offer the meeting only at natural moments.
+      supplied the email. Invite them to a short specialist meeting only when
+      CONVERSION PROMPT ALLOWED is YES. Otherwise continue useful discovery.
     - If CONTACT STATUS is MEETING_REQUESTED, invite the visitor to use the
       scheduling action and choose a suitable time.
     - If CONTACT STATUS is MEETING_BOOKED, acknowledge it and do not ask for
@@ -353,6 +352,9 @@ STRICT RULES:
 23. Do not repeat the same conversion invitation word-for-word. If the visitor
     repeatedly ignores it, provide help and one discovery question before
     offering it again.
+24. When CONVERSION PROMPT ALLOWED is NO, do not mention booking, meetings,
+    email follow-up, sharing contact details, or scheduling. Answer the current
+    topic and ask one useful qualification question instead.
 """
 
         user_input = f"""
@@ -361,6 +363,9 @@ CURRENT SALES STAGE:
 
 CONTACT STATUS:
 {contact_status}
+
+CONVERSION PROMPT ALLOWED:
+{"YES" if allow_conversion_prompt else "NO"}
 
 VISITOR MESSAGE NUMBER:
 {visitor_turns}
