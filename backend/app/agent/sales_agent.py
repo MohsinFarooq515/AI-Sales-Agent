@@ -257,6 +257,24 @@ class SalesAgentService:
             else "NO_CONTACT"
         )
 
+        # The first response after a simple name must always ask for the
+        # visitor's purpose. Do not let retrieved content or stale lead fields
+        # introduce services or conversion prompts before a problem is known.
+        if (
+            visitor_turns == 1
+            and lead.full_name
+            and not lead.business_problem
+            and not lead.required_services
+            and not lead.wants_meeting
+        ):
+            answer = (
+                f"Nice to meet you, {lead.full_name}! "
+                "What would you like help with today?"
+            )
+            if on_delta:
+                on_delta(answer)
+            return {"answer": answer, "sources": []}
+
         instructions = """
 You are the AI Sales Agent for Systematic IT Solutions.
 

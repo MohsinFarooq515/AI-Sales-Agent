@@ -166,6 +166,28 @@ class LeadLogicTests(unittest.TestCase):
             "I want a meeting", [], LeadProfile(wants_meeting=True)
         )
         self.assertEqual(requested[0]["type"], "book_meeting")
+        name_only = build_browser_actions(
+            "James Here", [], LeadProfile(full_name="James Here", email="old@example.com")
+        )
+        self.assertEqual(name_only, [])
+
+    def test_first_post_name_response_only_asks_for_purpose(self):
+        service = object.__new__(SalesAgentService)
+        service.model = "test-model"
+        service.client = MagicMock()
+        result = service.generate_response(
+            "James Here",
+            [{"role": "user", "content": "James Here"}],
+            LeadProfile(full_name="James Here"),
+            "discovery",
+            retrieval_results=[],
+            response_language="English",
+        )
+        self.assertEqual(
+            result["answer"],
+            "Nice to meet you, James Here! What would you like help with today?",
+        )
+        service.client.responses.create.assert_not_called()
 
 
 if __name__ == "__main__":

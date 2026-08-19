@@ -13,7 +13,7 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
     meeting_requested = any(
         word in text for word in ("book", "appointment", "meeting", "schedule")
     )
-    if not lead.meeting_booked and (conversion_ready or meeting_requested or has_contact):
+    if not lead.meeting_booked and (conversion_ready or meeting_requested):
         actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
     if conversion_ready and not has_contact and not lead.meeting_booked:

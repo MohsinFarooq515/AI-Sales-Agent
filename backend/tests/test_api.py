@@ -44,7 +44,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/demo").status_code, 200)
         self.assertEqual(self.client.get("/admin").status_code, 200)
         widget = self.client.get("/widget/widget.js").text
-        self.assertIn("sessionStorage.getItem('sits_agent_session')", widget)
+        self.assertNotIn("sessionStorage.getItem('sits_agent_session')", widget)
         self.assertIn("localStorage.removeItem('sits_agent_session')", widget)
         self.assertIn("function linkifyServices", widget)
         self.assertIn("https://systematicitsolutions.com/seo/local-seo", widget)
