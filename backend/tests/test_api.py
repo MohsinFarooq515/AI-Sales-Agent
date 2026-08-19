@@ -55,6 +55,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("a.type==='share_email'", widget)
         self.assertIn("function showEmailCapture", widget)
         self.assertIn("Submit email", widget)
+        self.assertIn("if(!session||sending)return", widget)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
@@ -214,6 +215,12 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(lead.email, "ahmed@example.com")
         self.assertTrue(lead.wants_meeting)
         self.assertTrue(lead.meeting_booked)
+        history = self.client.get(f"/api/conversations/{session_id}").json()
+        self.assertEqual(
+            history["messages"][-1]["content"],
+            "Thank you for scheduling a meeting. Our team will get back to you. "
+            "Do you have any further questions?",
+        )
 
     def test_dashboard_is_public_but_crm_writes_remain_protected(self):
         app.dependency_overrides.pop(require_admin, None)

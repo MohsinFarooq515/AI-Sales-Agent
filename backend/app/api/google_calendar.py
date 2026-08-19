@@ -8,7 +8,12 @@ from app.agent.lead_scoring import calculate_lead_score
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import ConversationDB, GoogleCalendarCredentialDB, IntegrationSettingDB
-from app.db.repository import add_analytics_event, get_lead_profile, save_lead_profile
+from app.db.repository import (
+    add_analytics_event,
+    add_message,
+    get_lead_profile,
+    save_lead_profile,
+)
 from app.integrations.google_calendar import authorization_url, create_event, exchange_code
 from app.integrations.google_sheets import clear_lead_rows
 from app.integrations.webhooks import sync_lead_background
@@ -64,6 +69,16 @@ def book(request: MeetingRequest, background_tasks: BackgroundTasks,
     lead.meeting_booked = True
     lead = calculate_lead_score(lead)
     save_lead_profile(db, str(request.session_id), lead)
+    confirmation = (
+        "Thank you for scheduling a meeting. Our team will get back to you. "
+        "Do you have any further questions?"
+    )
+    confirmation_message = add_message(
+        db,
+        str(request.session_id),
+        "assistant",
+        confirmation,
+    )
     payload = lead.model_dump(mode="json") | {
         "session_id": str(request.session_id), "status": "meeting_booked",
         "meeting_start": request.start.isoformat(), "meeting_url": event.get("hangoutLink"),
@@ -72,4 +87,6 @@ def book(request: MeetingRequest, background_tasks: BackgroundTasks,
                               ["meeting.booked"])
     return {"booked": True, "event_id": event.get("id"),
             "calendar_url": event.get("htmlLink"),
-            "meeting_url": event.get("hangoutLink")}
+            "meeting_url": event.get("hangoutLink"),
+            "chat_message_id": confirmation_message.id,
+            "chat_message": confirmation}
