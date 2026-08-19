@@ -88,10 +88,17 @@ class CrmLeadUpdate(BaseModel):
 
 class InquiryRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=200)
+    persona: Optional[str] = Field(
+        default=None,
+        pattern=r"^(entrepreneur|solopreneur|company_representative|aspiring_entrepreneur|general_visitor)$",
+    )
     company_name: Optional[str] = Field(default=None, max_length=200)
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=320)
     phone: Optional[str] = Field(default=None, max_length=100)
     website_url: Optional[str] = Field(default=None, max_length=500)
     industry: Optional[str] = Field(default=None, max_length=200)
+    location: Optional[str] = Field(default=None, max_length=200)
+    timeline: Optional[str] = Field(default=None, max_length=200)
+    budget: Optional[str] = Field(default=None, max_length=200)
     required_services: List[str] = Field(default_factory=list, max_length=20)
     business_problem: str = Field(min_length=1, max_length=4000)

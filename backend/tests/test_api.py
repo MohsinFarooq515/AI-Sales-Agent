@@ -56,6 +56,12 @@ class ApiTests(unittest.TestCase):
         self.assertIn("function showEmailCapture", widget)
         self.assertIn("Submit email", widget)
         self.assertIn("if(!session||sending)return", widget)
+        self.assertIn("function renderActions", widget)
+        self.assertIn("complete_profile", widget)
+        inquiry_page = self.client.get("/inquiry").text
+        self.assertIn('select name="persona"', inquiry_page)
+        self.assertIn("Actual requirement", inquiry_page)
+        self.assertIn("Budget range", inquiry_page)
 
     def test_empty_chat_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": "   "})
@@ -219,7 +225,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(
             history["messages"][-1]["content"],
             "Thank you for scheduling a meeting. Our team will get back to you. "
-            "Do you have any further questions?",
+            "Please complete this short form so we can match you with the best "
+            "professional for your needs.",
+        )
+        action = history["messages"][-1]["sources"][0]
+        self.assertEqual(action["action_type"], "complete_profile")
+        self.assertEqual(action["label"], "Complete details form")
+        submission = self.client.post(f"/api/inquiries/{session_id}", json={
+            "full_name": "Ahmed Khan",
+            "phone": "+92 300 1234567",
+            "email": "ahmed@example.com",
+            "persona": "entrepreneur",
+            "business_problem": "Needs more online customers",
+        })
+        self.assertEqual(submission.status_code, 200)
+        self.assertEqual(
+            submission.json()["chat_message"],
+            "Thank you for submitting the form. We’ll see you at the meeting. "
+            "Do you have any further questions? I’ll be here to help.",
         )
 
     def test_dashboard_is_public_but_crm_writes_remain_protected(self):
@@ -299,7 +322,17 @@ class ApiTests(unittest.TestCase):
         inquiry = self.client.post(f'/api/inquiries/{body["session_id"]}', json={
             "full_name": "Demo Lead", "company_name": "Example Co",
             "email": "lead@example.com", "required_services": ["Local SEO"],
-            "business_problem": "Needs more local customers"
+            "business_problem": "Needs more local customers",
+            "persona": "entrepreneur", "phone": "+1 555 0100",
+            "timeline": "This month", "budget": "$5,000",
         })
         self.assertEqual(inquiry.status_code, 200)
         self.assertTrue(inquiry.json()["submitted"])
+        confirmation = self.client.get(
+            f'/api/conversations/{body["session_id"]}'
+        ).json()["messages"][-1]["content"]
+        self.assertEqual(
+            confirmation,
+            "Thank you for submitting the form. Our team will review your "
+            "details. Do you have any further questions? I’ll be here to help.",
+        )

@@ -71,13 +71,20 @@ def book(request: MeetingRequest, background_tasks: BackgroundTasks,
     save_lead_profile(db, str(request.session_id), lead)
     confirmation = (
         "Thank you for scheduling a meeting. Our team will get back to you. "
-        "Do you have any further questions?"
+        "Please complete this short form so we can match you with the best "
+        "professional for your needs."
     )
     confirmation_message = add_message(
         db,
         str(request.session_id),
         "assistant",
         confirmation,
+        sources=[{
+            "type": "action",
+            "action_type": "complete_profile",
+            "label": "Complete details form",
+            "url": f"{settings.app_base_url}/inquiry",
+        }],
     )
     payload = lead.model_dump(mode="json") | {
         "session_id": str(request.session_id), "status": "meeting_booked",

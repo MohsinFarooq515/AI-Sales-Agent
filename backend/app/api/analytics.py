@@ -278,5 +278,20 @@ def submit_inquiry(session_id: str, request: InquiryRequest,
                               ["proposal.requested"])
     add_analytics_event(db, "inquiry.submitted", session_id,
                         {"services": lead.required_services})
+    confirmation = (
+        "Thank you for submitting the form. We’ll see you at the meeting. "
+        "Do you have any further questions? I’ll be here to help."
+        if lead.meeting_booked
+        else "Thank you for submitting the form. Our team will review your "
+             "details. Do you have any further questions? I’ll be here to help."
+    )
+    confirmation_message = add_message(
+        db,
+        session_id,
+        "assistant",
+        confirmation,
+    )
     return {"submitted": True, "score": lead.score,
-            "temperature": lead.temperature, "status": conversation.stage}
+            "temperature": lead.temperature, "status": conversation.stage,
+            "chat_message_id": confirmation_message.id,
+            "chat_message": confirmation}
