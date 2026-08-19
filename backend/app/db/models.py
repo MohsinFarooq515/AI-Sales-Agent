@@ -30,6 +30,7 @@ class ConversationDB(Base):
     )
 
     last_conversion_prompt_turn = Column(Integer, nullable=True)
+    attention_offer_shown = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(
         DateTime,

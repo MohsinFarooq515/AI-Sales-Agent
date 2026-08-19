@@ -6,7 +6,11 @@ from cryptography.fernet import Fernet
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("OPENAI_CHAT_MODEL", "test-model")
 
-from app.agent.actions import build_browser_actions, should_offer_conversion
+from app.agent.actions import (
+    build_browser_actions,
+    should_offer_conversion,
+    should_show_attention_offer,
+)
 from app.agent.lead_scoring import calculate_lead_score
 from app.agent.models import LeadProfile, LeadTemperature, SalesStage
 from app.agent.sales_stage import determine_sales_stage
@@ -70,6 +74,8 @@ class LeadLogicTests(unittest.TestCase):
         )[0]
         self.assertNotIn("Mohsin", history_section)
         self.assertIn("visitors who may know nothing about", request["instructions"])
+        self.assertIn("strict language lock", request["instructions"])
+        self.assertIn("budget range in mind", request["instructions"])
         self.assertIn("CONTACT STATUS:\nNO_CONTACT", request["input"])
         self.assertEqual(result["answer"], "Here is the plan.")
 
@@ -178,6 +184,22 @@ class LeadLogicTests(unittest.TestCase):
         self.assertFalse(should_offer_conversion("Tell me more", lead, 5, 2))
         self.assertTrue(should_offer_conversion("What should I do next?", lead, 6, 2))
         self.assertTrue(should_offer_conversion("Book a meeting", lead, 3, 2))
+
+    def test_attention_offer_is_once_only_and_requires_no_contact(self):
+        lead = LeadProfile(business_problem="Low online sales")
+        self.assertTrue(should_show_attention_offer(
+            "How would you improve it?", lead, 3, 2, False
+        ))
+        self.assertFalse(should_show_attention_offer(
+            "Tell me more", lead, 4, 2, True
+        ))
+        self.assertFalse(should_show_attention_offer(
+            "Tell me more",
+            LeadProfile(business_problem="Low sales", email="lead@example.com"),
+            3,
+            2,
+            False,
+        ))
 
     def test_first_post_name_response_only_asks_for_purpose(self):
         service = object.__new__(SalesAgentService)

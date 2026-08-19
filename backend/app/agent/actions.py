@@ -30,11 +30,31 @@ def should_offer_conversion(
     return visitor_turn - last_prompt_turn >= CONVERSION_PROMPT_COOLDOWN_TURNS
 
 
+def should_show_attention_offer(
+    user_message: str,
+    lead: LeadProfile,
+    visitor_turn: int,
+    last_prompt_turn: Optional[int],
+    attention_offer_shown: bool,
+) -> bool:
+    """Show the approved promotion once after the first offer was ignored."""
+    return bool(
+        not attention_offer_shown
+        and not lead.meeting_booked
+        and not (lead.email or lead.phone)
+        and (lead.business_problem or lead.required_services)
+        and last_prompt_turn is not None
+        and visitor_turn > last_prompt_turn
+        and not visitor_requested_meeting(user_message)
+    )
+
+
 def build_browser_actions(
     user_message: str,
     sources: List[Dict],
     lead: LeadProfile,
     show_conversion: bool = True,
+    meeting_only: bool = False,
 ) -> List[Dict]:
     """Build safe actions that reflect the visitor's current contact state."""
     text = user_message.casefold()
@@ -45,7 +65,8 @@ def build_browser_actions(
     if show_conversion and not lead.meeting_booked and (conversion_ready or meeting_requested):
         actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
-    if show_conversion and conversion_ready and not has_contact and not lead.meeting_booked:
+    if (show_conversion and not meeting_only and conversion_ready
+            and not has_contact and not lead.meeting_booked):
         actions.append({"type": "share_email", "label": "Share my email"})
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:
         actions.append({"type": "call", "label": "Call us", "url": f"tel:{settings.company_phone}"})

@@ -61,6 +61,12 @@ def apply_compatible_schema_updates():
                 "ALTER TABLE conversations "
                 "ADD COLUMN last_conversion_prompt_turn INTEGER"
             ))
+    if "attention_offer_shown" not in conversation_columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE conversations "
+                "ADD COLUMN attention_offer_shown BOOLEAN NOT NULL DEFAULT 0"
+            ))
 
 
 def get_db():

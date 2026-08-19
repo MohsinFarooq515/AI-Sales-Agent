@@ -140,6 +140,44 @@ class ApiTests(unittest.TestCase):
         self.assertFalse(generate.call_args_list[1].args[6])
         self.assertTrue(generate.call_args_list[4].args[6])
 
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.sales_agent.generate_response",
+           return_value={"answer": "Helpful reply", "sources": []})
+    @patch("app.api.chat.lead_extractor.extract")
+    def test_attention_offer_is_shown_once_after_contact_options_are_ignored(
+            self, extract, generate, identify, retrieve):
+        extract.side_effect = [
+            LeadExtraction(business_problem="Website gets few customers"),
+            LeadExtraction(),
+            LeadExtraction(),
+        ]
+        session_id = str(uuid.uuid4())
+        first = self.client.post("/api/chat", json={
+            "message": "My website gets very few customers",
+            "session_id": session_id,
+        }).json()
+        second = self.client.post("/api/chat", json={
+            "message": "How would you improve it?",
+            "session_id": session_id,
+        }).json()
+        third = self.client.post("/api/chat", json={
+            "message": "Which part should be fixed first?",
+            "session_id": session_id,
+        }).json()
+
+        self.assertEqual(
+            [action["type"] for action in first["actions"]],
+            ["book_meeting", "share_email"],
+        )
+        self.assertEqual(
+            [action["type"] for action in second["actions"]],
+            ["book_meeting"],
+        )
+        self.assertEqual(third["actions"], [])
+        self.assertTrue(generate.call_args_list[1].args[7])
+        self.assertFalse(generate.call_args_list[2].args[7])
+
     def test_event_and_dashboard(self):
         self.assertEqual(self.client.post("/api/events", json={
             "event_type": "visitor.page_view", "data": {"url": "https://example.com"}

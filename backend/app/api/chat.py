@@ -25,7 +25,11 @@ from app.agent.sales_agent import (
 from app.agent.sales_stage import (
     determine_sales_stage,
 )
-from app.agent.actions import build_browser_actions, should_offer_conversion
+from app.agent.actions import (
+    build_browser_actions,
+    should_offer_conversion,
+    should_show_attention_offer,
+)
 
 from app.api.models import (
     ChatRequest,
@@ -175,7 +179,14 @@ def _process_chat(request, background_tasks, db, on_delta=None):
     )
 
     visitor_turn = sum(1 for item in messages if item.role == "user")
-    allow_conversion_prompt = should_offer_conversion(
+    show_attention_offer = should_show_attention_offer(
+        message,
+        lead,
+        visitor_turn,
+        conversation.last_conversion_prompt_turn,
+        conversation.attention_offer_shown,
+    )
+    allow_conversion_prompt = show_attention_offer or should_offer_conversion(
         message,
         lead,
         visitor_turn,
@@ -193,6 +204,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         retrieval_results,
         response_language,
         allow_conversion_prompt,
+        show_attention_offer,
         on_delta,
     )
 
@@ -249,9 +261,12 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         result["sources"],
         lead,
         show_conversion=allow_conversion_prompt,
+        meeting_only=show_attention_offer,
     )
     if any(action["type"] in ("book_meeting", "share_email") for action in actions):
         conversation.last_conversion_prompt_turn = visitor_turn
+    if show_attention_offer:
+        conversation.attention_offer_shown = True
 
     assistant_message = add_message(
         db=db,

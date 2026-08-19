@@ -195,6 +195,7 @@ class SalesAgentService:
         retrieval_results: Optional[List[Dict]] = None,
         response_language: Optional[str] = None,
         allow_conversion_prompt: bool = True,
+        show_attention_offer: bool = False,
         on_delta: Optional[Callable[[str], None]] = None,
     ) -> Dict:
         results = retrieval_results if retrieval_results is not None else self.retrieve_knowledge(user_message)
@@ -296,7 +297,8 @@ STRICT RULES:
 
 1. Company-specific information must come from the provided website context.
 2. Never invent services, pricing, guarantees, case studies, discounts,
-   timelines, policies, or capabilities.
+   timelines, policies, or capabilities. The single approved exception is the
+   APPROVED ATTENTION OFFER, and only when its directive is YES.
 3. Do not guarantee marketing or ranking results.
 4. Ask only one main question per response.
 5. Keep a normal response between 15 and 40 words. Use at most three short
@@ -323,6 +325,9 @@ STRICT RULES:
     message. If it asks you to detect the language, classify that latest message
     yourself. It always overrides the language used anywhere in RECENT
     CONVERSATION. Never copy the previous assistant language when it differs.
+    Treat this as a strict language lock: do not mix in words or sentences from
+    another language except proper names, URLs, email addresses, and technical
+    terms that would become misleading if translated.
 17. Handle objections with evidence and a low-pressure next step.
 18. Cross-sell only relevant services supported by website context.
 19. The interface supplies meeting/email buttons according to CONTACT STATUS.
@@ -355,6 +360,18 @@ STRICT RULES:
 24. When CONVERSION PROMPT ALLOWED is NO, do not mention booking, meetings,
     email follow-up, sharing contact details, or scheduling. Answer the current
     topic and ask one useful qualification question instead.
+25. Once the visitor's business context, desired outcome, and timeline are
+    reasonably clear, and budget is still missing, ask naturally: "Do you have
+    a budget range in mind? This will help us align the proposal with your
+    priorities." Translate this question into the locked response language.
+    Never pressure the visitor or require a budget to continue.
+26. When APPROVED ATTENTION OFFER is YES, briefly answer the visitor's current
+    message first, then communicate exactly these commercial terms without
+    adding conditions: starting a service with Systematic IT Solutions within
+    the next two weeks qualifies for 15% off the service. Explain that a short
+    technical consultation can assess requirements and identify the right
+    approach, then ask whether they would like to schedule a meeting. Mention
+    this promotion only once in the conversation.
 """
 
         user_input = f"""
@@ -366,6 +383,9 @@ CONTACT STATUS:
 
 CONVERSION PROMPT ALLOWED:
 {"YES" if allow_conversion_prompt else "NO"}
+
+APPROVED ATTENTION OFFER:
+{"YES" if show_attention_offer else "NO"}
 
 VISITOR MESSAGE NUMBER:
 {visitor_turns}
