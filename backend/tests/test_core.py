@@ -59,6 +59,8 @@ class LeadLogicTests(unittest.TestCase):
         self.assertEqual(extract_initial_name_reply("I'm Ahmed"), "Ahmed")
         self.assertIsNone(extract_initial_name_reply("I need a website"))
         self.assertIsNone(extract_initial_name_reply("clothing brand"))
+        self.assertIsNone(extract_initial_name_reply("tell me about yourself"))
+        self.assertEqual(extract_initial_name_reply("i am hamza khan"), "hamza khan")
 
     def test_name_collected_in_current_session_is_reused(self):
         service = object.__new__(SalesAgentService)

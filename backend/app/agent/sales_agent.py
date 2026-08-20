@@ -114,6 +114,9 @@ def extract_explicit_visitor_name(text: str) -> Optional[str]:
 
 def extract_initial_name_reply(text: str) -> Optional[str]:
     """Capture a short direct answer to the widget's opening name question."""
+    introduced = bool(re.match(
+        r"^\s*(?:i(?:'m| am)|it(?:'s| is))\s+", text, flags=re.IGNORECASE
+    ))
     candidate = re.sub(
         r"^\s*(?:i(?:'m| am)|it(?:'s| is))\s+",
         "",
@@ -121,15 +124,24 @@ def extract_initial_name_reply(text: str) -> Optional[str]:
         flags=re.IGNORECASE,
     ).strip(" .,!?:;'\"")
     words = candidate.split()
-    blocked = {
+    non_name_words = {
         "hello", "hi", "hey", "website", "business", "help", "need",
         "want", "seo", "marketing", "design", "development", "problem",
         "brand", "clothing", "store", "shop", "company", "service",
         "services", "startup", "restaurant", "clinic", "school",
+        "tell", "show", "explain", "describe", "give", "find", "looking",
+        "what", "who", "why", "where", "when", "how", "can", "could",
+        "would", "do", "does", "is", "are", "me", "you", "yourself",
+        "myself", "about", "your", "our", "the", "a", "an", "to", "for",
     }
-    if not 1 <= len(words) <= 4 or any(word.casefold() in blocked for word in words):
+    if (not 1 <= len(words) <= 4
+            or any(word.casefold() in non_name_words for word in words)):
         return None
     if not all(word.replace("-", "").replace("'", "").isalpha() for word in words):
+        return None
+    # A bare multi-word name is normally title-cased. Explicit introductions
+    # such as "I am hamza khan" remain valid regardless of capitalization.
+    if not introduced and len(words) > 1 and not all(word[:1].isupper() for word in words):
         return None
     return candidate
 
