@@ -88,6 +88,9 @@ class LeadLogicTests(unittest.TestCase):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
         self.assertEqual(detect_response_language("clothing brand"), "English")
         self.assertEqual(
+            detect_response_language("tell me about yourself"), "English"
+        )
+        self.assertEqual(
             detect_response_language("NO website at that time, want website"),
             "English",
         )

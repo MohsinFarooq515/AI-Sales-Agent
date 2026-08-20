@@ -53,10 +53,11 @@ def detect_response_language(text: str) -> str:
         for language, vocabulary in vocabularies.items()
     }
     language, score = max(scores.items(), key=lambda item: item[1])
-    # When lexical evidence is inconclusive, the response model must classify
-    # the latest message itself. Do not incorrectly force an unknown Latin-
-    # script language to English.
-    return language if score else "Detect from the latest visitor message"
+    # Latin-script messages with no signal for another supported language are
+    # overwhelmingly English in this widget. Lock them deterministically to
+    # English instead of asking the response model to guess from sparse text;
+    # that guess was the source of intermittent English/Urdu mixing.
+    return language if score else "English"
 
 
 def is_language_neutral_message(text: str) -> bool:
