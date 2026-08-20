@@ -21,6 +21,16 @@ def company_call_action() -> Dict:
     }
 
 
+def email_capture_action(lead: LeadProfile) -> Dict:
+    """Request a name alongside email only when the name is still unknown."""
+    name_required = not bool(lead.full_name)
+    return {
+        "type": "share_email",
+        "label": "Share my name & email" if name_required else "Share my email",
+        "fields": {"name_required": name_required},
+    }
+
+
 def visitor_requested_meeting(user_message: str) -> bool:
     text = user_message.casefold()
     return any(word in text for word in ("book", "appointment", "meeting", "schedule"))
@@ -98,10 +108,10 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
                         "url": f"{settings.app_base_url}/booking"})
     if (prompt_kind in (PROMPT_BOTH, PROMPT_EMAIL) and conversion_ready
             and not (lead.email or lead.phone) and not lead.meeting_booked):
-        actions.append({"type": "share_email", "label": "Share my email"})
+        actions.append(email_capture_action(lead))
     if contact_target and not lead.email and not any(
             action["type"] == "share_email" for action in actions):
-        actions.append({"type": "share_email", "label": "Share my email"})
+        actions.append(email_capture_action(lead))
     if prompt_kind == PROMPT_COMPANY_PHONE and settings.company_phone:
         actions.append(company_call_action())
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:

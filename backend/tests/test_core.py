@@ -65,6 +65,8 @@ class LeadLogicTests(unittest.TestCase):
             show_conversion=False,
         )
         self.assertEqual([action["type"] for action in missing], ["share_email"])
+        self.assertEqual(missing[0]["label"], "Share my name & email")
+        self.assertTrue(missing[0]["fields"]["name_required"])
         self.assertEqual(saved, [])
 
     def test_contact_request_response_bypasses_normal_conversion_strategy(self):
@@ -243,6 +245,13 @@ class LeadLogicTests(unittest.TestCase):
             [action["type"] for action in anonymous],
             ["book_meeting", "share_email"],
         )
+        self.assertEqual(anonymous[1]["label"], "Share my name & email")
+        named = build_browser_actions(
+            "My website gets no customers", [],
+            LeadProfile(full_name="James", business_problem="Website gets no customers"),
+        )
+        self.assertEqual(named[1]["label"], "Share my email")
+        self.assertFalse(named[1]["fields"]["name_required"])
         identified = build_browser_actions(
             "Here is my email", [],
             LeadProfile(email="lead@example.com", business_problem="Low sales"),
