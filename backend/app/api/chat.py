@@ -27,8 +27,7 @@ from app.agent.sales_stage import (
 )
 from app.agent.actions import (
     build_browser_actions,
-    should_offer_conversion,
-    should_show_attention_offer,
+    determine_conversion_prompt,
 )
 
 from app.api.models import (
@@ -136,6 +135,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         lead.full_name = explicit_visitor_name
     previous_score = lead.score
     was_identified = bool(lead.email or lead.phone)
+    had_email = bool(lead.email)
     previously_wanted_meeting = lead.wants_meeting
     previously_wanted_proposal = lead.wants_proposal
     previously_requested_human = lead.requested_human
@@ -179,19 +179,17 @@ def _process_chat(request, background_tasks, db, on_delta=None):
     )
 
     visitor_turn = sum(1 for item in messages if item.role == "user")
-    show_attention_offer = should_show_attention_offer(
+    if lead.email and not had_email:
+        conversation.email_captured_turn = visitor_turn
+    conversion_prompt_kind = determine_conversion_prompt(
         message,
         lead,
         visitor_turn,
         conversation.last_conversion_prompt_turn,
-        conversation.attention_offer_shown,
+        conversation.last_conversion_prompt_kind,
+        conversation.email_captured_turn,
     )
-    allow_conversion_prompt = show_attention_offer or should_offer_conversion(
-        message,
-        lead,
-        visitor_turn,
-        conversation.last_conversion_prompt_turn,
-    )
+    allow_conversion_prompt = conversion_prompt_kind is not None
 
     # Generate from the updated profile so the same turn can thank a visitor
     # for a newly supplied email and never ask for information just captured.
@@ -204,7 +202,8 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         retrieval_results,
         response_language,
         allow_conversion_prompt,
-        show_attention_offer,
+        False,
+        conversion_prompt_kind,
         on_delta,
     )
 
@@ -260,13 +259,12 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         message,
         result["sources"],
         lead,
-        show_conversion=allow_conversion_prompt,
-        meeting_only=show_attention_offer,
+        show_conversion=False,
+        prompt_kind=conversion_prompt_kind,
     )
     if any(action["type"] in ("book_meeting", "share_email") for action in actions):
         conversation.last_conversion_prompt_turn = visitor_turn
-    if show_attention_offer:
-        conversation.attention_offer_shown = True
+        conversation.last_conversion_prompt_kind = conversion_prompt_kind
 
     assistant_message = add_message(
         db=db,

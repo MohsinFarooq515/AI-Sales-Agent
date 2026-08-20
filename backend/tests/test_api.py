@@ -111,7 +111,7 @@ class ApiTests(unittest.TestCase):
     @patch("app.api.chat.sales_agent.generate_response",
            return_value={"answer": "Helpful reply", "sources": []})
     @patch("app.api.chat.lead_extractor.extract")
-    def test_conversion_actions_are_suppressed_during_cooldown(
+    def test_conversion_actions_follow_requested_cadence(
             self, extract, generate, identify, retrieve):
         extract.side_effect = [
             LeadExtraction(business_problem="Website gets few customers"),
@@ -132,27 +132,23 @@ class ApiTests(unittest.TestCase):
             "message": message, "session_id": session_id,
         }).json() for message in messages]
 
-        self.assertEqual(
-            [action["type"] for action in responses[0]["actions"]],
-            ["book_meeting", "share_email"],
-        )
+        self.assertEqual(responses[0]["actions"], [])
         self.assertEqual(responses[1]["actions"], [])
-        self.assertEqual(responses[2]["actions"], [])
-        self.assertEqual(responses[3]["actions"], [])
         self.assertEqual(
-            [action["type"] for action in responses[4]["actions"]],
+            [action["type"] for action in responses[2]["actions"]],
             ["book_meeting"],
         )
-        # The model receives the same cadence directive as the UI actions.
+        self.assertEqual(responses[3]["actions"], [])
+        self.assertEqual(responses[4]["actions"], [])
         self.assertFalse(generate.call_args_list[1].args[6])
-        self.assertTrue(generate.call_args_list[4].args[6])
+        self.assertTrue(generate.call_args_list[2].args[6])
 
     @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
     @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
     @patch("app.api.chat.sales_agent.generate_response",
            return_value={"answer": "Helpful reply", "sources": []})
     @patch("app.api.chat.lead_extractor.extract")
-    def test_attention_offer_is_shown_once_after_contact_options_are_ignored(
+    def test_first_combined_offer_occurs_on_third_response(
             self, extract, generate, identify, retrieve):
         extract.side_effect = [
             LeadExtraction(business_problem="Website gets few customers"),
@@ -173,16 +169,11 @@ class ApiTests(unittest.TestCase):
             "session_id": session_id,
         }).json()
 
-        self.assertEqual(
-            [action["type"] for action in first["actions"]],
-            ["book_meeting", "share_email"],
-        )
-        self.assertEqual(
-            [action["type"] for action in second["actions"]],
-            ["book_meeting"],
-        )
-        self.assertEqual(third["actions"], [])
-        self.assertTrue(generate.call_args_list[1].args[7])
+        self.assertEqual(first["actions"], [])
+        self.assertEqual(second["actions"], [])
+        self.assertEqual([action["type"] for action in third["actions"]],
+                         ["book_meeting", "share_email"])
+        self.assertFalse(generate.call_args_list[1].args[7])
         self.assertFalse(generate.call_args_list[2].args[7])
 
     def test_event_and_dashboard(self):

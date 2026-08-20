@@ -8,6 +8,10 @@ os.environ.setdefault("OPENAI_CHAT_MODEL", "test-model")
 
 from app.agent.actions import (
     build_browser_actions,
+    determine_conversion_prompt,
+    PROMPT_BOTH,
+    PROMPT_EMAIL,
+    PROMPT_MEETING,
     should_offer_conversion,
     should_show_attention_offer,
 )
@@ -177,17 +181,28 @@ class LeadLogicTests(unittest.TestCase):
         )
         self.assertEqual(name_only, [])
 
-    def test_conversion_prompt_observes_cooldown_but_explicit_request_bypasses_it(self):
+    def test_conversion_prompt_follows_non_repetitive_sequence(self):
         lead = LeadProfile(business_problem="Needs more customers")
-        self.assertTrue(should_offer_conversion("I need help", lead, 2, None))
-        self.assertFalse(should_offer_conversion("Here is my email", lead, 3, 2))
-        self.assertFalse(should_offer_conversion("Tell me more", lead, 5, 2))
-        self.assertTrue(should_offer_conversion("What should I do next?", lead, 6, 2))
-        self.assertTrue(should_offer_conversion("Book a meeting", lead, 3, 2))
+        self.assertIsNone(determine_conversion_prompt("Help", lead, 2, None, None, None))
+        self.assertEqual(determine_conversion_prompt(
+            "Help", lead, 3, None, None, None), PROMPT_BOTH)
+        self.assertIsNone(determine_conversion_prompt(
+            "More", lead, 5, 3, PROMPT_BOTH, None))
+        self.assertEqual(determine_conversion_prompt(
+            "More", lead, 6, 3, PROMPT_BOTH, None), PROMPT_MEETING)
+        self.assertEqual(determine_conversion_prompt(
+            "Still unsure", lead, 7, 6, PROMPT_MEETING, None), PROMPT_EMAIL)
 
-    def test_attention_offer_is_once_only_and_requires_no_contact(self):
+    def test_email_capture_asks_details_then_meeting(self):
+        lead = LeadProfile(email="lead@example.com", business_problem="Low sales")
+        self.assertIsNone(determine_conversion_prompt(
+            "lead@example.com", lead, 3, None, None, 3))
+        self.assertEqual(determine_conversion_prompt(
+            "Traffic fell last month", lead, 4, None, None, 3), PROMPT_MEETING)
+
+    def test_legacy_attention_offer_is_disabled(self):
         lead = LeadProfile(business_problem="Low online sales")
-        self.assertTrue(should_show_attention_offer(
+        self.assertFalse(should_show_attention_offer(
             "How would you improve it?", lead, 3, 2, False
         ))
         self.assertFalse(should_show_attention_offer(
@@ -215,7 +230,7 @@ class LeadLogicTests(unittest.TestCase):
         )
         self.assertEqual(
             result["answer"],
-            "Nice to meet you, James Here! What would you like help with today?",
+            "Welcome James Here, How can we assist you today?",
         )
         service.client.responses.create.assert_not_called()
 

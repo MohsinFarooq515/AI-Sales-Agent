@@ -196,6 +196,7 @@ class SalesAgentService:
         response_language: Optional[str] = None,
         allow_conversion_prompt: bool = True,
         show_attention_offer: bool = False,
+        conversion_prompt_kind: Optional[str] = None,
         on_delta: Optional[Callable[[str], None]] = None,
     ) -> Dict:
         results = retrieval_results if retrieval_results is not None else self.retrieve_knowledge(user_message)
@@ -270,8 +271,7 @@ class SalesAgentService:
             and not lead.wants_meeting
         ):
             answer = (
-                f"Nice to meet you, {lead.full_name}! "
-                "What would you like help with today?"
+                f'Welcome {lead.full_name}, How can we assist you today?'
             )
             if on_delta:
                 on_delta(answer)
@@ -332,11 +332,12 @@ STRICT RULES:
 18. Cross-sell only relevant services supported by website context.
 19. The interface supplies meeting/email buttons according to CONTACT STATUS.
     Do not claim a button exists when the current status does not support it.
-20. Use the collected name naturally, but not in every reply. Never call an
-    unknown visitor "Sir" and never infer a name.
+20. Use the collected name naturally, but not in every reply. If the first
+    visitor message asks a question without supplying a name, the response must
+    begin with "Sir,". Never infer a name.
 21. Follow CONVERSATION WORKFLOW exactly:
-    - If a name is known but no purpose/problem is known, say "Nice to meet
-      you, [name]!" and ask what they would like help with today.
+    - If a name is known but no purpose/problem is known, welcome them by name
+      and ask how you can assist today.
     - Once a purpose/problem is known and CONTACT STATUS is NO_CONTACT, answer
       it briefly in human and practical terms. Invite a short meeting or email
       follow-up only when CONVERSION PROMPT ALLOWED is YES.
@@ -372,6 +373,18 @@ STRICT RULES:
     technical consultation can assess requirements and identify the right
     approach, then ask whether they would like to schedule a meeting. Mention
     this promotion only once in the conversation.
+27. Follow the CONVERSION PROMPT TYPE exactly:
+    - NONE: do not request an email or meeting. Ask one useful problem-detail
+      question when discovery is still needed.
+    - EMAIL_AND_MEETING: after useful help, naturally request an email address
+      and offer a short meeting in the same response.
+    - MEETING_ONLY: after useful help, offer a short meeting; do not ask for email.
+    - EMAIL_ONLY: after useful help, request an email; do not mention a meeting.
+28. If the visitor supplied an email in the latest message and no meeting is
+    booked, acknowledge it and ask for more detail about their stated problem.
+    Do not offer a meeting in that response.
+29. On the first message, if the visitor supplied both a name and a problem,
+    begin by thanking them for reaching out by name, then answer immediately.
 """
 
         user_input = f"""
@@ -383,6 +396,9 @@ CONTACT STATUS:
 
 CONVERSION PROMPT ALLOWED:
 {"YES" if allow_conversion_prompt else "NO"}
+
+CONVERSION PROMPT TYPE:
+{(conversion_prompt_kind or "NONE").upper()}
 
 APPROVED ATTENTION OFFER:
 {"YES" if show_attention_offer else "NO"}
@@ -431,6 +447,11 @@ Respond naturally and entirely in the response language directive.
         else:
             response = self.client.responses.create(**request_options)
             answer = response.output_text.strip()
+
+        # Deterministically enforce the requested first-turn form even if the
+        # model overlooks it. Streaming uses the equivalent strict directive.
+        if visitor_turns == 1 and not lead.full_name and not on_delta:
+            answer = normalize_visitor_address(answer, "Sir")
 
         sources = []
         seen_urls = set()
