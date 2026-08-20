@@ -58,6 +58,7 @@ class LeadLogicTests(unittest.TestCase):
         self.assertEqual(extract_initial_name_reply("Ahmed Khan"), "Ahmed Khan")
         self.assertEqual(extract_initial_name_reply("I'm Ahmed"), "Ahmed")
         self.assertIsNone(extract_initial_name_reply("I need a website"))
+        self.assertIsNone(extract_initial_name_reply("clothing brand"))
 
     def test_name_collected_in_current_session_is_reused(self):
         service = object.__new__(SalesAgentService)
@@ -85,6 +86,11 @@ class LeadLogicTests(unittest.TestCase):
 
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
+        self.assertEqual(detect_response_language("clothing brand"), "English")
+        self.assertEqual(
+            detect_response_language("NO website at that time, want website"),
+            "English",
+        )
         self.assertEqual(
             detect_response_language("saya ingin berbicara dengan perusahaan Anda"),
             "Indonesian",

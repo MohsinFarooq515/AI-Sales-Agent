@@ -37,7 +37,7 @@ def detect_response_language(text: str) -> str:
 
     words = set(re.findall(r"[a-zA-ZÀ-ÿ]+", text.lower()))
     vocabularies = {
-        "English": {"the", "a", "an", "i", "we", "you", "your", "what", "how", "can", "do", "does", "is", "are", "need", "want", "website", "designer", "service", "services", "business", "company", "offer"},
+        "English": {"the", "a", "an", "i", "we", "you", "your", "what", "how", "can", "do", "does", "is", "are", "at", "that", "no", "need", "want", "website", "designer", "service", "services", "business", "company", "offer", "brand", "clothing", "store", "shop", "online"},
         "Urdu written in Roman script": {"aap", "ap", "mujhe", "mera", "meri", "hum", "kya", "kaise", "mein", "main", "hain", "hai", "chahiye", "karna", "sahib", "sahib", "saath"},
         "Indonesian": {"saya", "anda", "dengan", "ingin", "bisa", "tolong", "perusahaan", "bertemu", "layanan", "bagaimana", "untuk", "dan", "yang"},
         "Spanish": {"hola", "quiero", "puede", "servicio", "empresa", "clientes", "para", "con", "cómo", "gracias"},
@@ -123,6 +123,8 @@ def extract_initial_name_reply(text: str) -> Optional[str]:
     blocked = {
         "hello", "hi", "hey", "website", "business", "help", "need",
         "want", "seo", "marketing", "design", "development", "problem",
+        "brand", "clothing", "store", "shop", "company", "service",
+        "services", "startup", "restaurant", "clinic", "school",
     }
     if not 1 <= len(words) <= 4 or any(word.casefold() in blocked for word in words):
         return None
