@@ -51,7 +51,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("link.target='_blank'", widget)
         self.assertIn("function requestChatStream", widget)
         self.assertIn("[502,503,504]", widget)
-        self.assertIn("May I have your name, please?", widget)
+        self.assertIn("How can I help you today?", widget)
+        self.assertNotIn("May I have your name, please?", widget)
         self.assertIn("a.type==='share_email'", widget)
         self.assertIn("function showEmailCapture", widget)
         self.assertIn("Submit email", widget)
@@ -165,7 +166,7 @@ class ApiTests(unittest.TestCase):
     @patch("app.api.chat.sales_agent.generate_response",
            return_value={"answer": "Helpful reply", "sources": []})
     @patch("app.api.chat.lead_extractor.extract")
-    def test_first_combined_offer_occurs_on_third_response(
+    def test_email_then_meeting_offer_are_split_across_second_and_third_response(
             self, extract, generate, identify, retrieve):
         extract.side_effect = [
             LeadExtraction(business_problem="Website gets few customers"),
@@ -187,9 +188,10 @@ class ApiTests(unittest.TestCase):
         }).json()
 
         self.assertEqual(first["actions"], [])
-        self.assertEqual(second["actions"], [])
+        self.assertEqual([action["type"] for action in second["actions"]],
+                         ["share_email"])
         self.assertEqual([action["type"] for action in third["actions"]],
-                         ["book_meeting", "share_email"])
+                         ["book_meeting"])
         self.assertFalse(generate.call_args_list[1].args[7])
         self.assertFalse(generate.call_args_list[2].args[7])
 

@@ -12,6 +12,7 @@ from app.agent.actions import (
     PROMPT_BOTH,
     PROMPT_EMAIL,
     PROMPT_MEETING,
+    PROMPT_MEETING_AFTER_EMAIL,
     PROMPT_PHONE,
     PROMPT_COMPANY_PHONE,
     should_offer_conversion,
@@ -263,15 +264,12 @@ class LeadLogicTests(unittest.TestCase):
 
     def test_conversion_prompt_follows_non_repetitive_sequence(self):
         lead = LeadProfile(business_problem="Needs more customers")
-        self.assertIsNone(determine_conversion_prompt("Help", lead, 2, None, None, None))
         self.assertEqual(determine_conversion_prompt(
-            "Help", lead, 3, None, None, None), PROMPT_BOTH)
+            "Help", lead, 2, None, None, None), PROMPT_EMAIL)
+        self.assertEqual(determine_conversion_prompt(
+            "More", lead, 3, 2, PROMPT_EMAIL, None), PROMPT_MEETING_AFTER_EMAIL)
         self.assertIsNone(determine_conversion_prompt(
-            "More", lead, 5, 3, PROMPT_BOTH, None))
-        self.assertEqual(determine_conversion_prompt(
-            "More", lead, 6, 3, PROMPT_BOTH, None), PROMPT_MEETING)
-        self.assertEqual(determine_conversion_prompt(
-            "Still unsure", lead, 7, 6, PROMPT_MEETING, None), PROMPT_EMAIL)
+            "Still unsure", lead, 4, 3, PROMPT_MEETING_AFTER_EMAIL, None))
 
     def test_email_capture_asks_details_then_meeting(self):
         lead = LeadProfile(email="lead@example.com", business_problem="Low sales")

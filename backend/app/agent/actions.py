@@ -7,6 +7,7 @@ from app.core.config import settings
 PROMPT_BOTH = "email_and_meeting"
 PROMPT_MEETING = "meeting_only"
 PROMPT_EMAIL = "email_only"
+PROMPT_MEETING_AFTER_EMAIL = "meeting_after_email"
 PROMPT_PHONE = "phone_only"
 PROMPT_COMPANY_PHONE = "company_phone"
 
@@ -54,7 +55,12 @@ def determine_conversion_prompt(user_message: str, lead: LeadProfile,
             return PROMPT_MEETING
         return None
     if last_prompt_turn is None:
-        return PROMPT_BOTH if visitor_turn >= 3 else None
+        return PROMPT_EMAIL if visitor_turn >= 2 else None
+    if last_prompt_kind == PROMPT_EMAIL:
+        return (PROMPT_MEETING_AFTER_EMAIL
+                if visitor_turn >= last_prompt_turn + 1 else None)
+    if last_prompt_kind == PROMPT_MEETING_AFTER_EMAIL:
+        return None
     if last_prompt_kind == PROMPT_BOTH:
         return PROMPT_MEETING if visitor_turn >= last_prompt_turn + 3 else None
     if last_prompt_kind == PROMPT_MEETING:
@@ -85,7 +91,8 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
     contact_target = requested_contact_target(user_message)
     if prompt_kind is None and show_conversion:
         prompt_kind = PROMPT_MEETING if meeting_only else PROMPT_BOTH
-    if (prompt_kind in (PROMPT_BOTH, PROMPT_MEETING) and not lead.meeting_booked
+    if (prompt_kind in (PROMPT_BOTH, PROMPT_MEETING, PROMPT_MEETING_AFTER_EMAIL)
+            and not lead.meeting_booked
             and (conversion_ready or meeting_requested)):
         actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
