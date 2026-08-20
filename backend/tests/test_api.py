@@ -193,6 +193,32 @@ class ApiTests(unittest.TestCase):
         self.assertFalse(generate.call_args_list[1].args[7])
         self.assertFalse(generate.call_args_list[2].args[7])
 
+    @patch("app.agent.actions.settings")
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.sales_agent.generate_response",
+           return_value={"answer": "Helpful reply", "sources": []})
+    @patch("app.api.chat.lead_extractor.extract")
+    def test_eighth_turn_phone_fallback_persists_into_next_response(
+            self, extract, generate, identify, retrieve, action_settings):
+        extract.side_effect = [
+            LeadExtraction(business_problem="Needs more customers")
+        ] + [LeadExtraction() for _ in range(8)]
+        action_settings.company_phone = "+1 626-381-8293"
+        session_id = str(uuid.uuid4())
+        responses = [self.client.post("/api/chat", json={
+            "message": f"Question {turn}", "session_id": session_id,
+        }).json() for turn in range(1, 10)]
+
+        self.assertEqual(generate.call_args_list[7].args[8], "phone_only")
+        self.assertEqual(generate.call_args_list[8].args[8], "company_phone")
+        self.assertEqual(responses[7]["actions"], [])
+        self.assertEqual(responses[8]["actions"], [{
+            "type": "call", "label": "Call us: +1 626-381-8293",
+            "url": "tel:+1 626-381-8293",
+            "fields": {},
+        }])
+
     def test_event_and_dashboard(self):
         self.assertEqual(self.client.post("/api/events", json={
             "event_type": "visitor.page_view", "data": {"url": "https://example.com"}

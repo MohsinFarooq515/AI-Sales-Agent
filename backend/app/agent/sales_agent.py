@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from app.agent.models import LeadProfile
+from app.agent.contact_request import contact_request_answer, requested_contact_target
+from app.agent.actions import PROMPT_COMPANY_PHONE, PROMPT_PHONE
+from app.core.config import settings
 from app.rag.retriever import LocalVectorRetriever
 
 
@@ -275,6 +278,32 @@ class SalesAgentService:
             else "NO_CONTACT"
         )
 
+        # Explicit requests for a particular person/team are handled from the
+        # persisted lead state. This intentionally bypasses normal conversion
+        # cadence only for this narrow handover intent.
+        contact_target = requested_contact_target(user_message)
+        if contact_target and response_language == "English":
+            answer = contact_request_answer(contact_target, bool(lead.email))
+            if on_delta:
+                on_delta(answer)
+            return {"answer": answer, "sources": []}
+
+        if conversion_prompt_kind == PROMPT_PHONE and response_language == "English":
+            answer = (
+                "To make it easier for our team to contact you, could you share "
+                "your contact number?"
+            )
+            if on_delta:
+                on_delta(answer)
+            return {"answer": answer, "sources": []}
+
+        if (conversion_prompt_kind == PROMPT_COMPANY_PHONE
+                and response_language == "English"):
+            answer = f"You can also call our team directly at {settings.company_phone}."
+            if on_delta:
+                on_delta(answer)
+            return {"answer": answer, "sources": []}
+
         # The first response after a simple name must always ask for the
         # visitor's purpose. Do not let retrieved content or stale lead fields
         # introduce services or conversion prompts before a problem is known.
@@ -400,6 +429,19 @@ STRICT RULES:
     Do not offer a meeting in that response.
 29. On the first message, if the visitor supplied both a name and a problem,
     begin by thanking them for reaching out by name, then answer immediately.
+30. If the visitor explicitly asks to contact, speak with, or connect with a
+    company role or team, this overrides rules 24 and 27 for that request only.
+    If an email is present in KNOWN LEAD INFORMATION, say that the requested
+    role/team will contact them at the email address they shared. Otherwise,
+    ask them to share their email so that requested role/team can contact them.
+    Do not ask any additional question in that response.
+31. Follow these two late contact fallback types exactly. They are exceptions
+    to rules 22, 24, and 27 only when their named type is supplied:
+    - PHONE_ONLY: ask only for the visitor's contact number so the team can
+      contact them more easily. Do not request an email or meeting as well.
+    - COMPANY_PHONE: provide the official company contact number from the
+      COMPANY PHONE field so the visitor can call directly. Do not request
+      contact information again in that response.
 """
 
         user_input = f"""
@@ -414,6 +456,9 @@ CONVERSION PROMPT ALLOWED:
 
 CONVERSION PROMPT TYPE:
 {(conversion_prompt_kind or "NONE").upper()}
+
+COMPANY PHONE:
+{settings.company_phone}
 
 APPROVED ATTENTION OFFER:
 {"YES" if show_attention_offer else "NO"}

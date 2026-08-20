@@ -12,6 +12,8 @@ from app.agent.actions import (
     PROMPT_BOTH,
     PROMPT_EMAIL,
     PROMPT_MEETING,
+    PROMPT_PHONE,
+    PROMPT_COMPANY_PHONE,
     should_offer_conversion,
     should_show_attention_offer,
 )
@@ -24,11 +26,78 @@ from app.agent.sales_agent import (SalesAgentService, detect_response_language,
                                    is_language_neutral_message,
                                    resolve_response_language,
                                    normalize_visitor_address)
+from app.agent.contact_request import (contact_request_answer,
+                                       requested_contact_target)
 from app.rag.refresh import content_fingerprint
 from app.core.security import decrypt_secret, encrypt_secret
 
 
 class LeadLogicTests(unittest.TestCase):
+    def test_explicit_member_contact_request_uses_saved_email_state(self):
+        self.assertEqual(
+            requested_contact_target("I wanna contact with the CEO"), "CEO"
+        )
+        self.assertEqual(
+            requested_contact_target("Can I speak to your sale team?"), "sales team"
+        )
+        self.assertEqual(
+            requested_contact_target("Please connect me with the founder"), "founder"
+        )
+        self.assertIsNone(requested_contact_target("Tell me about your founder"))
+        self.assertEqual(
+            contact_request_answer("CEO", True),
+            "Our CEO will contact you at the email address you shared.",
+        )
+        self.assertEqual(
+            contact_request_answer("founder", False),
+            "Please share your email address so our founder can contact you.",
+        )
+
+    @patch("app.agent.actions.settings")
+    def test_contact_request_offers_email_only_when_missing(self, settings):
+        settings.company_phone = ""
+        missing = build_browser_actions(
+            "I want to talk to the CEO", [], LeadProfile(), show_conversion=False
+        )
+        saved = build_browser_actions(
+            "I want to talk to the CEO", [], LeadProfile(email="lead@example.com"),
+            show_conversion=False,
+        )
+        self.assertEqual([action["type"] for action in missing], ["share_email"])
+        self.assertEqual(saved, [])
+
+    def test_contact_request_response_bypasses_normal_conversion_strategy(self):
+        service = object.__new__(SalesAgentService)
+        service.model = "test-model"
+        service.client = MagicMock()
+        with_email = service.generate_response(
+            "I want to contact the founder",
+            [{"role": "user", "content": "I want to contact the founder"}],
+            LeadProfile(email="lead@example.com"),
+            "handover",
+            retrieval_results=[],
+            response_language="English",
+            allow_conversion_prompt=False,
+        )
+        without_email = service.generate_response(
+            "Let me speak with your CEO",
+            [{"role": "user", "content": "Let me speak with your CEO"}],
+            LeadProfile(),
+            "handover",
+            retrieval_results=[],
+            response_language="English",
+            allow_conversion_prompt=False,
+        )
+        self.assertEqual(
+            with_email["answer"],
+            "Our founder will contact you at the email address you shared.",
+        )
+        self.assertEqual(
+            without_email["answer"],
+            "Please share your email address so our CEO can contact you.",
+        )
+        service.client.responses.create.assert_not_called()
+
     def test_visitor_address_is_deterministic(self):
         self.assertEqual(
             normalize_visitor_address("Sir, here is the plan.", "Demo Lead"),
@@ -210,6 +279,59 @@ class LeadLogicTests(unittest.TestCase):
             "lead@example.com", lead, 3, None, None, 3))
         self.assertEqual(determine_conversion_prompt(
             "Traffic fell last month", lead, 4, None, None, 3), PROMPT_MEETING)
+
+    def test_late_phone_fallback_runs_once_and_stops_when_phone_is_shared(self):
+        anonymous = LeadProfile(business_problem="Needs more customers")
+        self.assertEqual(determine_conversion_prompt(
+            "Tell me more", anonymous, 8, 7, PROMPT_EMAIL, None), PROMPT_PHONE)
+        self.assertEqual(determine_conversion_prompt(
+            "What else?", anonymous, 9, 8, PROMPT_PHONE, None),
+            PROMPT_COMPANY_PHONE,
+        )
+        self.assertIsNone(determine_conversion_prompt(
+            "Continue", anonymous, 10, 9, PROMPT_COMPANY_PHONE, None))
+        identified = LeadProfile(phone="+92 300 1234567",
+                                 business_problem="Needs more customers")
+        self.assertIsNone(determine_conversion_prompt(
+            "+92 300 1234567", identified, 9, 8, PROMPT_PHONE, None))
+        emailed = LeadProfile(email="lead@example.com",
+                              business_problem="Needs more customers")
+        self.assertNotIn(determine_conversion_prompt(
+            "Continue", emailed, 8, 7, PROMPT_EMAIL, 3),
+            (PROMPT_PHONE, PROMPT_COMPANY_PHONE))
+
+    def test_late_phone_fallback_returns_required_visitor_messages(self):
+        service = object.__new__(SalesAgentService)
+        service.model = "test-model"
+        service.client = MagicMock()
+        history = [{"role": "user", "content": f"Question {turn}"}
+                   for turn in range(1, 9)]
+        request_number = service.generate_response(
+            "Question 8", history, LeadProfile(), "discovery",
+            retrieval_results=[], response_language="English",
+            conversion_prompt_kind=PROMPT_PHONE,
+        )
+        offer_number = service.generate_response(
+            "Question 9", history + [{"role": "user", "content": "Question 9"}],
+            LeadProfile(), "discovery", retrieval_results=[],
+            response_language="English",
+            conversion_prompt_kind=PROMPT_COMPANY_PHONE,
+        )
+        self.assertIn("share your contact number", request_number["answer"])
+        self.assertIn("call our team directly", offer_number["answer"])
+        service.client.responses.create.assert_not_called()
+
+    @patch("app.agent.actions.settings")
+    def test_company_phone_fallback_adds_call_action(self, settings):
+        settings.company_phone = "+1 626-381-8293"
+        actions = build_browser_actions(
+            "Tell me more", [], LeadProfile(), show_conversion=False,
+            prompt_kind=PROMPT_COMPANY_PHONE,
+        )
+        self.assertEqual(actions, [{
+            "type": "call", "label": "Call us: +1 626-381-8293",
+            "url": "tel:+1 626-381-8293"
+        }])
 
     def test_legacy_attention_offer_is_disabled(self):
         lead = LeadProfile(business_problem="Low online sales")

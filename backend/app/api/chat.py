@@ -28,6 +28,8 @@ from app.agent.sales_stage import (
 from app.agent.actions import (
     build_browser_actions,
     determine_conversion_prompt,
+    PROMPT_COMPANY_PHONE,
+    PROMPT_PHONE,
 )
 
 from app.api.models import (
@@ -271,7 +273,8 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         show_conversion=False,
         prompt_kind=conversion_prompt_kind,
     )
-    if any(action["type"] in ("book_meeting", "share_email") for action in actions):
+    if (any(action["type"] in ("book_meeting", "share_email") for action in actions)
+            or conversion_prompt_kind in (PROMPT_PHONE, PROMPT_COMPANY_PHONE)):
         conversation.last_conversion_prompt_turn = visitor_turn
         conversation.last_conversion_prompt_kind = conversion_prompt_kind
 

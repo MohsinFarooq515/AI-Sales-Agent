@@ -1,11 +1,23 @@
 from typing import Dict, List, Optional
 
 from app.agent.models import LeadProfile
+from app.agent.contact_request import requested_contact_target
 from app.core.config import settings
 
 PROMPT_BOTH = "email_and_meeting"
 PROMPT_MEETING = "meeting_only"
 PROMPT_EMAIL = "email_only"
+PROMPT_PHONE = "phone_only"
+PROMPT_COMPANY_PHONE = "company_phone"
+
+
+def company_call_action() -> Dict:
+    """Expose the official number in the UI while retaining click-to-call."""
+    return {
+        "type": "call",
+        "label": f"Call us: {settings.company_phone}",
+        "url": f"tel:{settings.company_phone}",
+    }
 
 
 def visitor_requested_meeting(user_message: str) -> bool:
@@ -22,6 +34,16 @@ def determine_conversion_prompt(user_message: str, lead: LeadProfile,
         return None
     if visitor_requested_meeting(user_message):
         return PROMPT_MEETING
+    # This is a late fallback only. It leaves the existing email/meeting
+    # cadence untouched for the first seven visitor turns.
+    if not (lead.email or lead.phone):
+        if last_prompt_kind == PROMPT_PHONE and last_prompt_turn is not None:
+            if visitor_turn == last_prompt_turn + 1:
+                return PROMPT_COMPANY_PHONE
+        if last_prompt_kind == PROMPT_COMPANY_PHONE:
+            return None
+        if visitor_turn >= 8:
+            return PROMPT_PHONE
     if not (lead.business_problem or lead.required_services):
         return None
     if lead.email:
@@ -60,6 +82,7 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
     actions = []
     conversion_ready = bool(lead.business_problem or lead.required_services)
     meeting_requested = visitor_requested_meeting(user_message)
+    contact_target = requested_contact_target(user_message)
     if prompt_kind is None and show_conversion:
         prompt_kind = PROMPT_MEETING if meeting_only else PROMPT_BOTH
     if (prompt_kind in (PROMPT_BOTH, PROMPT_MEETING) and not lead.meeting_booked
@@ -69,8 +92,14 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
     if (prompt_kind in (PROMPT_BOTH, PROMPT_EMAIL) and conversion_ready
             and not (lead.email or lead.phone) and not lead.meeting_booked):
         actions.append({"type": "share_email", "label": "Share my email"})
+    if contact_target and not lead.email and not any(
+            action["type"] == "share_email" for action in actions):
+        actions.append({"type": "share_email", "label": "Share my email"})
+    if prompt_kind == PROMPT_COMPANY_PHONE and settings.company_phone:
+        actions.append(company_call_action())
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:
-        actions.append({"type": "call", "label": "Call us", "url": f"tel:{settings.company_phone}"})
+        if not any(action["type"] == "call" for action in actions):
+            actions.append(company_call_action())
     if any(word in text for word in ("contact form", "inquiry", "proposal", "quote")):
         actions.append({"type": "fill_form", "label": "Review inquiry form",
                         "url": f"{settings.app_base_url}/inquiry",
