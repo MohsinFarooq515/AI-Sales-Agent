@@ -161,6 +161,15 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         raise HTTPException(status_code=503,
                             detail="The AI service is temporarily unavailable. Please retry.") from exc
 
+    # On the opening name question, accept a model-extracted name only when
+    # the same conservative deterministic check accepts the visitor's reply.
+    # This prevents business descriptions such as "clothing brand" from being
+    # persisted as a person's name after the earlier check rejected them.
+    if visitor_message_count := sum(1 for item in messages if item.role == "user"):
+        if (visitor_message_count == 1 and not explicit_visitor_name
+                and extracted.full_name):
+            extracted = extracted.model_copy(update={"full_name": None})
+
     lead = merge_lead_profile(
         current=lead,
         extracted=extracted,

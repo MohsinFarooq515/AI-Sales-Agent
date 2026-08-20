@@ -109,6 +109,23 @@ class ApiTests(unittest.TestCase):
     @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
     @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
     @patch("app.api.chat.sales_agent.generate_response",
+           return_value={"answer": "Sir, tell me about the brand.", "sources": []})
+    @patch("app.api.chat.lead_extractor.extract")
+    def test_business_description_is_not_accepted_as_opening_name(
+            self, extract, generate, identify, retrieve):
+        extract.return_value = LeadExtraction(
+            full_name="clothing brand", business_problem="Clothing brand"
+        )
+        response = self.client.post("/api/chat", json={
+            "message": "clothing brand", "session_id": str(uuid.uuid4()),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["lead"]["full_name"])
+        self.assertIsNone(generate.call_args.args[2].full_name)
+
+    @patch("app.api.chat.sales_agent.retrieve_knowledge", return_value=[])
+    @patch("app.api.chat.sales_agent.identify_response_language", return_value="English")
+    @patch("app.api.chat.sales_agent.generate_response",
            return_value={"answer": "Helpful reply", "sources": []})
     @patch("app.api.chat.lead_extractor.extract")
     def test_conversion_actions_follow_requested_cadence(
