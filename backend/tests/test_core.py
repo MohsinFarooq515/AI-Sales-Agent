@@ -156,6 +156,29 @@ class LeadLogicTests(unittest.TestCase):
         self.assertIn("CONTACT STATUS:\nNO_CONTACT", request["input"])
         self.assertEqual(result["answer"], "Here is the plan.")
 
+    def test_meeting_prompt_forbids_mismatched_email_request(self):
+        service = object.__new__(SalesAgentService)
+        service.model = "test-model"
+        service.client = MagicMock()
+        service.client.responses.create.return_value.output_text = "Schedule a meeting."
+        service.generate_response(
+            "Tell me more",
+            [{"role": "user", "content": "Tell me more"}],
+            LeadProfile(business_problem="Needs more customers"),
+            "discovery",
+            retrieval_results=[],
+            response_language="English",
+            conversion_prompt_kind=PROMPT_MEETING,
+        )
+        request = service.client.responses.create.call_args.kwargs
+        self.assertIn(
+            "VISIBLE RECOMMENDED ACTION:\nSCHEDULE_MEETING", request["input"]
+        )
+        self.assertIn(
+            "Never request an email when it is SCHEDULE_MEETING",
+            request["instructions"],
+        )
+
     def test_language_fallback_does_not_copy_previous_language(self):
         self.assertEqual(detect_response_language("Ecom website designer"), "English")
         self.assertEqual(detect_response_language("clothing brand"), "English")
