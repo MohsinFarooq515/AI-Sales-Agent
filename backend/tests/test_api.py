@@ -57,6 +57,8 @@ class ApiTests(unittest.TestCase):
         self.assertNotIn("Share your name and email", widget)
         self.assertIn("if(!session||sending)return", widget)
         self.assertIn("function renderActions", widget)
+        self.assertIn("a.type==='share_email'", widget)
+        self.assertIn("input.type='email'", widget)
         self.assertIn("complete_profile", widget)
         inquiry_page = self.client.get("/inquiry").text
         self.assertIn('select name="persona"', inquiry_page)
@@ -187,7 +189,8 @@ class ApiTests(unittest.TestCase):
         }).json()
 
         self.assertEqual(first["actions"], [])
-        self.assertEqual(second["actions"], [])
+        self.assertEqual([action["type"] for action in second["actions"]],
+                         ["share_email"])
         self.assertEqual([action["type"] for action in third["actions"]],
                          ["book_meeting"])
         self.assertFalse(generate.call_args_list[1].args[7])

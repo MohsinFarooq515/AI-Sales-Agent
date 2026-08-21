@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from app.agent.models import LeadProfile
+from app.agent.contact_request import requested_contact_target
 from app.core.config import settings
 
 PROMPT_BOTH = "email_and_meeting"
@@ -94,6 +95,12 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
             and (conversion_ready or meeting_requested)):
         actions.append({"type": "book_meeting", "label": "Schedule a meeting",
                         "url": f"{settings.app_base_url}/booking"})
+    asks_for_email = (
+        prompt_kind in (PROMPT_BOTH, PROMPT_EMAIL)
+        or requested_contact_target(user_message) is not None
+    )
+    if asks_for_email and not lead.email:
+        actions.append({"type": "share_email", "label": "Your Email"})
     if prompt_kind == PROMPT_COMPANY_PHONE and settings.company_phone:
         actions.append(company_call_action())
     if any(word in text for word in ("call", "phone", "speak")) and settings.company_phone:
@@ -111,4 +118,4 @@ def build_browser_actions(user_message: str, sources: List[Dict], lead: LeadProf
     if sources and any(word in text for word in navigation_words):
         actions.append({"type": "navigate", "label": f"Open {sources[0]['title']}",
                         "url": sources[0]["url"]})
-    return actions[:3]
+    return actions[:4]

@@ -55,7 +55,7 @@ class LeadLogicTests(unittest.TestCase):
         )
 
     @patch("app.agent.actions.settings")
-    def test_contact_request_does_not_offer_email_button(self, settings):
+    def test_contact_request_offers_email_button_until_email_is_saved(self, settings):
         settings.company_phone = ""
         missing = build_browser_actions(
             "I want to talk to the CEO", [], LeadProfile(), show_conversion=False
@@ -64,7 +64,7 @@ class LeadLogicTests(unittest.TestCase):
             "I want to talk to the CEO", [], LeadProfile(email="lead@example.com"),
             show_conversion=False,
         )
-        self.assertEqual(missing, [])
+        self.assertEqual(missing, [{"type": "share_email", "label": "Your Email"}])
         self.assertEqual(saved, [])
 
     def test_contact_request_response_bypasses_normal_conversion_strategy(self):
@@ -229,7 +229,10 @@ class LeadLogicTests(unittest.TestCase):
         actions = build_browser_actions("Show the service and book a call", [
             {"title": "Local SEO", "url": "https://systematicitsolutions.com/seo/local-seo"}
         ], LeadProfile())
-        self.assertEqual({a["type"] for a in actions}, {"book_meeting", "call", "navigate"})
+        self.assertEqual(
+            {a["type"] for a in actions},
+            {"book_meeting", "share_email", "call", "navigate"},
+        )
 
     @patch("app.agent.actions.settings")
     def test_conversion_actions_follow_contact_status(self, settings):
@@ -241,13 +244,14 @@ class LeadLogicTests(unittest.TestCase):
         )
         self.assertEqual(
             [action["type"] for action in anonymous],
-            ["book_meeting"],
+            ["book_meeting", "share_email"],
         )
         named = build_browser_actions(
             "My website gets no customers", [],
             LeadProfile(full_name="James", business_problem="Website gets no customers"),
         )
-        self.assertEqual([action["type"] for action in named], ["book_meeting"])
+        self.assertEqual([action["type"] for action in named],
+                         ["book_meeting", "share_email"])
         identified = build_browser_actions(
             "Here is my email", [],
             LeadProfile(email="lead@example.com", business_problem="Low sales"),
