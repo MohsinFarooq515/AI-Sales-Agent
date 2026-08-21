@@ -55,7 +55,7 @@ class LeadLogicTests(unittest.TestCase):
         )
 
     @patch("app.agent.actions.settings")
-    def test_contact_request_offers_email_only_when_missing(self, settings):
+    def test_contact_request_does_not_offer_email_button(self, settings):
         settings.company_phone = ""
         missing = build_browser_actions(
             "I want to talk to the CEO", [], LeadProfile(), show_conversion=False
@@ -64,9 +64,7 @@ class LeadLogicTests(unittest.TestCase):
             "I want to talk to the CEO", [], LeadProfile(email="lead@example.com"),
             show_conversion=False,
         )
-        self.assertEqual([action["type"] for action in missing], ["share_email"])
-        self.assertEqual(missing[0]["label"], "Share my name & email")
-        self.assertTrue(missing[0]["fields"]["name_required"])
+        self.assertEqual(missing, [])
         self.assertEqual(saved, [])
 
     def test_contact_request_response_bypasses_normal_conversion_strategy(self):
@@ -243,15 +241,13 @@ class LeadLogicTests(unittest.TestCase):
         )
         self.assertEqual(
             [action["type"] for action in anonymous],
-            ["book_meeting", "share_email"],
+            ["book_meeting"],
         )
-        self.assertEqual(anonymous[1]["label"], "Share my name & email")
         named = build_browser_actions(
             "My website gets no customers", [],
             LeadProfile(full_name="James", business_problem="Website gets no customers"),
         )
-        self.assertEqual(named[1]["label"], "Share my email")
-        self.assertFalse(named[1]["fields"]["name_required"])
+        self.assertEqual([action["type"] for action in named], ["book_meeting"])
         identified = build_browser_actions(
             "Here is my email", [],
             LeadProfile(email="lead@example.com", business_problem="Low sales"),

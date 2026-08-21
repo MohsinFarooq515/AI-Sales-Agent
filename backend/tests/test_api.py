@@ -53,10 +53,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("[502,503,504]", widget)
         self.assertIn("How can I help you today?", widget)
         self.assertNotIn("May I have your name, please?", widget)
-        self.assertIn("a.type==='share_email'", widget)
-        self.assertIn("function showEmailCapture", widget)
-        self.assertIn("Share your name and email", widget)
-        self.assertIn("My name is ${form.elements.name.value.trim()}", widget)
+        self.assertNotIn("function showEmailCapture", widget)
+        self.assertNotIn("Share your name and email", widget)
         self.assertIn("if(!session||sending)return", widget)
         self.assertIn("function renderActions", widget)
         self.assertIn("complete_profile", widget)
@@ -189,10 +187,7 @@ class ApiTests(unittest.TestCase):
         }).json()
 
         self.assertEqual(first["actions"], [])
-        self.assertEqual([action["type"] for action in second["actions"]],
-                         ["share_email"])
-        self.assertEqual(second["actions"][0]["label"], "Share my name & email")
-        self.assertTrue(second["actions"][0]["fields"]["name_required"])
+        self.assertEqual(second["actions"], [])
         self.assertEqual([action["type"] for action in third["actions"]],
                          ["book_meeting"])
         self.assertFalse(generate.call_args_list[1].args[7])

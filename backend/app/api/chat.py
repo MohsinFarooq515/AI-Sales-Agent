@@ -273,8 +273,7 @@ def _process_chat(request, background_tasks, db, on_delta=None):
         show_conversion=False,
         prompt_kind=conversion_prompt_kind,
     )
-    if (any(action["type"] in ("book_meeting", "share_email") for action in actions)
-            or conversion_prompt_kind in (PROMPT_PHONE, PROMPT_COMPANY_PHONE)):
+    if conversion_prompt_kind is not None:
         conversation.last_conversion_prompt_turn = visitor_turn
         conversation.last_conversion_prompt_kind = conversion_prompt_kind
 
