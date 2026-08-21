@@ -8,7 +8,14 @@ from openai import OpenAI
 
 from app.agent.models import LeadProfile
 from app.agent.contact_request import contact_request_answer, requested_contact_target
-from app.agent.actions import PROMPT_COMPANY_PHONE, PROMPT_PHONE
+from app.agent.actions import (
+    PROMPT_BOTH,
+    PROMPT_COMPANY_PHONE,
+    PROMPT_EMAIL,
+    PROMPT_MEETING,
+    PROMPT_MEETING_AFTER_EMAIL,
+    PROMPT_PHONE,
+)
 from app.core.config import settings
 from app.rag.retriever import LocalVectorRetriever
 
@@ -332,8 +339,8 @@ Your goals are to:
 - Understand the visitor's business and problem.
 - Answer questions accurately using the supplied website knowledge.
 - Recommend relevant Systematic IT Solutions services.
-- Explain benefits in business terms.
 - Capture a name, understand the purpose, and give immediate useful value.
+- Explain benefits in business terms.
 - Capture an email or meeting early, then qualify the visitor naturally.
 - Encourage an email-only lead to schedule a short meeting as well.
 
@@ -378,7 +385,7 @@ STRICT RULES:
     Do not claim a button exists when the current status does not support it.
 20. Use the collected name naturally, but not in every reply. If the first
     visitor message asks a question without supplying a name, the response must
-    begin with "Sir,". Never infer a name.
+    begin with a professional tone.
 21. Follow CONVERSATION WORKFLOW exactly:
     - If a name is known but no purpose/problem is known, welcome them by name
       and ask how you can assist today.
@@ -428,6 +435,9 @@ STRICT RULES:
       If Name is absent from KNOWN LEAD INFORMATION, request the visitor's name
       and email together so the team can address them properly. If Name is
       already present, request only the email.
+    The final call to action must match VISIBLE RECOMMENDED ACTION exactly.
+    Never request an email when it is SCHEDULE_MEETING, and never mention
+    scheduling when it is SHARE_EMAIL. Do not combine or substitute actions.
 28. If the visitor supplied an email in the latest message and no meeting is
     booked, acknowledge it and ask for more detail about their stated problem.
     Do not offer a meeting in that response.
@@ -448,6 +458,13 @@ STRICT RULES:
       contact information again in that response.
 """
 
+        visible_recommended_action = {
+            PROMPT_MEETING: "SCHEDULE_MEETING",
+            PROMPT_MEETING_AFTER_EMAIL: "SCHEDULE_MEETING",
+            PROMPT_EMAIL: "SHARE_EMAIL",
+            PROMPT_BOTH: "SHARE_EMAIL_AND_SCHEDULE_MEETING",
+        }.get(conversion_prompt_kind, "NONE")
+
         user_input = f"""
 CURRENT SALES STAGE:
 {sales_stage}
@@ -460,6 +477,9 @@ CONVERSION PROMPT ALLOWED:
 
 CONVERSION PROMPT TYPE:
 {(conversion_prompt_kind or "NONE").upper()}
+
+VISIBLE RECOMMENDED ACTION:
+{visible_recommended_action}
 
 COMPANY PHONE:
 {settings.company_phone}
